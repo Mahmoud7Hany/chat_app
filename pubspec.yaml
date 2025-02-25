@@ -21,6 +21,10 @@ dependencies:
   cloud_firestore: ^5.5.1
   shared_preferences: ^2.3.3
   url_launcher: ^6.3.1
+  fl_chart: ^0.70.2
+  logger: ^2.0.2
+  firebase_remote_config: ^5.4.1
+  package_info_plus: ^8.3.0
 
 dev_dependencies:
   flutter_test:
