@@ -13,6 +13,10 @@ android {
     compileSdk = 34
     ndkVersion = flutter.ndkVersion
 
+    aaptOptions {
+        cruncherEnabled = false
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
