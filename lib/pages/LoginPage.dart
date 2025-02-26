@@ -39,7 +39,7 @@ class _LoginPageState extends State<LoginPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("الرجاء ملء جميع الحقول")),
       );
-      return; // عدم المتابعة في حالة الحقول الفارغة
+      return;
     }
 
     setState(() {
@@ -54,12 +54,10 @@ class _LoginPageState extends State<LoginPage> {
       await _setLoginStatus(); // تخزين حالة تسجيل الدخول
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(
-            builder: (context) => const ChatPage()), // الانتقال إلى صفحة الشات
+        MaterialPageRoute(builder: (context) => const ChatPage()),
       );
     } catch (e) {
       String errorMessage = 'فشل تسجيل الدخول';
-
       if (e is FirebaseAuthException) {
         switch (e.code) {
           case 'user-not-found':
@@ -71,12 +69,14 @@ class _LoginPageState extends State<LoginPage> {
           case 'invalid-email':
             errorMessage = 'البريد الإلكتروني غير صالح.';
             break;
+          case 'user-disabled': // حالة الحساب المعطل
+            errorMessage = 'تم تقيد حسابك، تواصل مع الدعم.';
+            break;
           default:
             errorMessage = 'حدث خطأ غير متوقع: ${e.message}';
             break;
         }
       }
-
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(errorMessage)),
       );

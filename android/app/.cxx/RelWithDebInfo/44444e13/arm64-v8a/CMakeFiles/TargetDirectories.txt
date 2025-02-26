@@ -1,0 +1,2 @@
+C:/Users/rh291/Downloads/app/chat_app/android/app/.cxx/RelWithDebInfo/44444e13/arm64-v8a/CMakeFiles/edit_cache.dir
+C:/Users/rh291/Downloads/app/chat_app/android/app/.cxx/RelWithDebInfo/44444e13/arm64-v8a/CMakeFiles/rebuild_cache.dir
