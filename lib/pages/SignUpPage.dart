@@ -1,4 +1,4 @@
-// ignore_for_file: use_build_context_synchronously, library_private_types_in_public_api, file_names
+// ignore_for_file: use_build_context_synchronously, library_private_types_in_public_api, file_names, deprecated_member_use
 
 import 'package:chat/pages/LoginPage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';

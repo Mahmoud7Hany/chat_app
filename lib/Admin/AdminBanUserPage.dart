@@ -1,9 +1,11 @@
+// ignore_for_file: use_build_context_synchronously, file_names
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 class AdminBanUserPage extends StatefulWidget {
   final String userId;
-  const AdminBanUserPage({Key? key, required this.userId}) : super(key: key);
+  const AdminBanUserPage({super.key, required this.userId});
 
   @override
   State<AdminBanUserPage> createState() => _AdminBanUserPageState();

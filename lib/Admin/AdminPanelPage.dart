@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously, file_names, deprecated_member_use
+
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -98,9 +100,11 @@ class _AdminPanelPageState extends State<AdminPanelPage> {
 
         var users = snapshot.data!.docs;
         int totalUsers = users.length;
-        int verifiedUsers = users.where((user) => user['isVerified'] == true).length;
+        int verifiedUsers =
+            users.where((user) => user['isVerified'] == true).length;
         int adminUsers = users.where((user) => user['isAdmin'] == true).length;
-        int bannedUsers = users.where((user) => user['isBanned'] == true).length;
+        int bannedUsers =
+            users.where((user) => user['isBanned'] == true).length;
 
         return Container(
           decoration: BoxDecoration(
@@ -184,7 +188,8 @@ class _AdminPanelPageState extends State<AdminPanelPage> {
     );
   }
 
-  Widget _buildAnimatedStatCard(String title, int value, Color color, IconData icon) {
+  Widget _buildAnimatedStatCard(
+      String title, int value, Color color, IconData icon) {
     return Card(
       elevation: 8,
       shadowColor: color.withOpacity(0.2),
@@ -301,7 +306,9 @@ class _AdminPanelPageState extends State<AdminPanelPage> {
                         Text(isVerified ? 'موثق' : 'غير موثق'),
                         const SizedBox(width: 8),
                         Icon(
-                          isAdmin ? Icons.admin_panel_settings : Icons.person_outline,
+                          isAdmin
+                              ? Icons.admin_panel_settings
+                              : Icons.person_outline,
                           color: isAdmin ? Colors.orange : Colors.grey,
                           size: 16,
                         ),
@@ -316,19 +323,26 @@ class _AdminPanelPageState extends State<AdminPanelPage> {
                   children: [
                     IconButton(
                       icon: Icon(
-                        isVerified ? Icons.verified_user : Icons.verified_user_outlined,
+                        isVerified
+                            ? Icons.verified_user
+                            : Icons.verified_user_outlined,
                         color: isVerified ? Colors.green : Colors.grey,
                       ),
-                      onPressed: () => _toggleVerification(context, userId, isVerified),
+                      onPressed: () =>
+                          _toggleVerification(context, userId, isVerified),
                       tooltip: isVerified ? 'إلغاء التوثيق' : 'توثيق',
                     ),
                     IconButton(
                       icon: Icon(
-                        isAdmin ? Icons.admin_panel_settings : Icons.admin_panel_settings_outlined,
+                        isAdmin
+                            ? Icons.admin_panel_settings
+                            : Icons.admin_panel_settings_outlined,
                         color: isAdmin ? Colors.orange : Colors.grey,
                       ),
                       onPressed: () => _toggleAdmin(context, userId, isAdmin),
-                      tooltip: isAdmin ? 'إزالة صلاحيات المشرف' : 'منح صلاحيات المشرف',
+                      tooltip: isAdmin
+                          ? 'إزالة صلاحيات المشرف'
+                          : 'منح صلاحيات المشرف',
                     ),
                   ],
                 ),
@@ -353,6 +367,18 @@ class _AdminPanelPageState extends State<AdminPanelPage> {
               Tab(text: 'المستخدمين'),
             ],
           ),
+          // actions: [
+          //   IconButton(
+          //     icon: const Icon(Icons.people),
+          //     tooltip: 'إدارة المستخدمين',
+          //     onPressed: () {
+          //       Navigator.push(
+          //         context,
+          //         MaterialPageRoute(builder: (context) => const AllUsersPage()),
+          //       );
+          //     },
+          //   ),
+          // ],
         ),
         body: TabBarView(
           children: [

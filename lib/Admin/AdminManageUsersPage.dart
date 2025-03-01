@@ -1,9 +1,11 @@
+// ignore_for_file: file_names
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:chat/Admin/AdminBanUserPage.dart';
 
 class AdminManageUsersPage extends StatelessWidget {
-  const AdminManageUsersPage({Key? key}) : super(key: key);
+  const AdminManageUsersPage({super.key});
 
   Widget _buildUserCard(BuildContext context, DocumentSnapshot user) {
     String username = user['username'] ?? 'غير معروف';

@@ -1,12 +1,10 @@
-import 'package:chat/Admin/AdminManageUsersPage.dart';
-import 'package:chat/Admin/AdminPanelPage.dart';
-import 'package:chat/pages/LoginPage.dart';
+// ignore_for_file: deprecated_member_use, library_private_types_in_public_api, file_names
+
 import 'package:chat/pages/Support/SupportPage.dart';
-import 'package:chat/widgets/BanCountdownWidget.dart'; // استدعاء الويجت الجديد
+import 'package:chat/widgets/BanCountdownWidget.dart'; 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class ChatPage extends StatefulWidget {
   const ChatPage({super.key});
@@ -23,7 +21,6 @@ class _ChatPageState extends State<ChatPage> {
   bool _isBanned = false;
   DateTime? _banUntil;
   String? _banReason;
-  bool _canViewMessages = true;
   bool _isAdmin = false; // متغير لتحديد حالة المشرف
 
   @override
@@ -43,7 +40,6 @@ class _ChatPageState extends State<ChatPage> {
           _banUntil = data['banUntil'] != null
               ? (data['banUntil'] as Timestamp).toDate()
               : null;
-          _canViewMessages = data['canViewMessages'] ?? true;
           _isAdmin = data['isAdmin'] ?? false; // تحديث حالة المشرف
         });
       }
@@ -134,8 +130,9 @@ class _ChatPageState extends State<ChatPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        elevation: 0,
         title: const Text(
-          'محادثة',
+          'محادثة عامة',
           style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
         ),
         flexibleSpace: Container(
@@ -150,59 +147,7 @@ class _ChatPageState extends State<ChatPage> {
             ),
           ),
         ),
-        elevation: 0,
         actions: [
-          // زر لوحة التحكم وإدارة المستخدمين للمشرف
-          StreamBuilder<DocumentSnapshot>(
-            stream: FirebaseFirestore.instance
-                .collection('users')
-                .doc(FirebaseAuth.instance.currentUser!.uid)
-                .snapshots(),
-            builder: (context, snapshot) {
-              if (snapshot.hasError) {
-                return const Center(child: Text('حدث خطأ'));
-              }
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const SizedBox.shrink();
-              }
-              if (snapshot.hasData && snapshot.data!.exists) {
-                final userData = snapshot.data!.data() as Map<String, dynamic>?;
-                final bool isAdmin = userData?['isAdmin'] ?? false;
-                if (isAdmin) {
-                  return Row(
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.admin_panel_settings,
-                            color: Colors.white),
-                        tooltip: 'لوحة التحكم',
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (context) => const AdminPanelPage()),
-                          );
-                        },
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.manage_accounts,
-                            color: Colors.white),
-                        tooltip: 'إدارة المستخدمين',
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (context) =>
-                                    const AdminManageUsersPage()),
-                          );
-                        },
-                      ),
-                    ],
-                  );
-                }
-              }
-              return Container();
-            },
-          ),
           // زر الدعم
           IconButton(
             icon: const Icon(Icons.support_agent, color: Colors.black),
@@ -214,347 +159,292 @@ class _ChatPageState extends State<ChatPage> {
               );
             },
           ),
-          // زر تسجيل الخروج
-          IconButton(
-            icon: const Icon(Icons.exit_to_app, color: Colors.white60),
-            onPressed: () async {
-              bool? shouldLogOut = await showDialog<bool>(
-                context: context,
-                builder: (BuildContext context) {
-                  return AlertDialog(
-                    title: const Text('تأكيد الخروج'),
-                    content: const Text('هل أنت متأكد أنك تريد تسجيل الخروج؟'),
-                    actions: <Widget>[
-                      TextButton(
-                        onPressed: () => Navigator.of(context).pop(false),
-                        child: const Text('إلغاء'),
-                      ),
-                      TextButton(
-                        onPressed: () => Navigator.of(context).pop(true),
-                        child: const Text('تأكيد'),
-                      ),
-                    ],
-                  );
-                },
-              );
-              if (shouldLogOut == true) {
-                await FirebaseAuth.instance.signOut();
-                SharedPreferences prefs = await SharedPreferences.getInstance();
-                await prefs.remove('isLoggedIn');
-                if (!mounted) return;
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (context) => const LoginPage()),
-                );
-              }
-            },
-          ),
         ],
       ),
       body: Column(
         children: [
-          // التحقق من إمكانية مشاهدة الرسائل
-          if (!_canViewMessages)
-            Expanded(
-              child: Center(
-                child: Text(
-                  'تم منعك من مشاهدة الرسائل.',
-                  style: TextStyle(fontSize: 18, color: Colors.red[700]),
-                ),
-              ),
-            )
-          else
-            // عرض الرسائل
-            Expanded(
-              child: StreamBuilder<QuerySnapshot>(
-                stream: FirebaseFirestore.instance
-                    .collection('messages')
-                    .orderBy('createdAt', descending: false)
-                    .snapshots(),
-                builder: (context, snapshot) {
-                  if (snapshot.hasError) {
-                    return Center(child: Text('حدث خطأ: ${snapshot.error}'));
-                  }
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                    return const Center(
-                      child: Text(
-                        'لا توجد رسائل',
-                        style: TextStyle(fontSize: 16, color: Colors.grey),
-                      ),
-                    );
-                  }
-                  List<DocumentSnapshot> messages = snapshot.data!.docs;
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    _scrollToBottom();
-                  });
-                  return ListView.builder(
-                    controller: _scrollController,
-                    padding: const EdgeInsets.all(16),
-                    itemCount: messages.length,
-                    itemBuilder: (context, index) {
-                      var message =
-                          messages[index].data() as Map<String, dynamic>;
-                      bool isMe = message['senderId'] ==
-                          FirebaseAuth.instance.currentUser!.uid;
-                      return FutureBuilder<DocumentSnapshot>(
-                        future: FirebaseFirestore.instance
-                            .collection('users')
-                            .doc(message['senderId'])
-                            .get(),
-                        builder: (context, userSnapshot) {
-                          String username = 'U';
-                          bool isMessageUserAdmin = false;
-                          bool isVerified = false;
-                          if (userSnapshot.hasData &&
-                              userSnapshot.data != null) {
-                            var userData = userSnapshot.data!.data()
-                                as Map<String, dynamic>?;
-                            username =
-                                (userData?['username'] ?? 'U').toString();
-                            isMessageUserAdmin = userData?['isAdmin'] ?? false;
-                            isVerified = userData?['isVerified'] ?? false;
-                          }
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 8),
-                            child: Row(
-                              mainAxisAlignment: isMe
-                                  ? MainAxisAlignment.end
-                                  : MainAxisAlignment.start,
-                              children: [
-                                if (!isMe) _buildAvatar(username),
-                                Container(
-                                  constraints: BoxConstraints(
-                                    maxWidth:
-                                        MediaQuery.of(context).size.width * 0.7,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: isMe
-                                        ? Theme.of(context).primaryColor
-                                        : Colors.white,
-                                    borderRadius: BorderRadius.only(
-                                      topLeft: const Radius.circular(16),
-                                      topRight: const Radius.circular(16),
-                                      bottomLeft:
-                                          Radius.circular(isMe ? 16 : 4),
-                                      bottomRight:
-                                          Radius.circular(isMe ? 4 : 16),
-                                    ),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withOpacity(0.1),
-                                        blurRadius: 4,
-                                        offset: const Offset(0, 2),
-                                      ),
-                                    ],
-                                  ),
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 16, vertical: 10),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      // عرض اسم المستخدم + توثيق/مشرف
-                                      if (userSnapshot.hasData &&
-                                          userSnapshot.data != null)
-                                        Padding(
-                                          padding:
-                                              const EdgeInsets.only(bottom: 4),
-                                          child: Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              if (isMessageUserAdmin)
-                                                Container(
-                                                  margin: const EdgeInsets.only(
-                                                      left: 4),
-                                                  padding: const EdgeInsets
-                                                      .symmetric(
-                                                      horizontal: 8,
-                                                      vertical: 2),
-                                                  decoration: BoxDecoration(
-                                                    gradient: LinearGradient(
-                                                      colors: [
-                                                        Colors.purple.shade300,
-                                                        Colors.purple.shade600,
-                                                      ],
-                                                    ),
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                            12),
-                                                    boxShadow: [
-                                                      BoxShadow(
-                                                        color: Colors.purple
-                                                            .withOpacity(0.3),
-                                                        blurRadius: 4,
-                                                        offset:
-                                                            const Offset(0, 2),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                  child: const Row(
-                                                    mainAxisSize:
-                                                        MainAxisSize.min,
-                                                    children: [
-                                                      Icon(
-                                                        Icons.shield,
-                                                        color: Colors.white,
-                                                        size: 12,
-                                                      ),
-                                                      SizedBox(width: 4),
-                                                      Text(
-                                                        'مشرف',
-                                                        style: TextStyle(
-                                                          color: Colors.white,
-                                                          fontSize: 10,
-                                                          fontWeight:
-                                                              FontWeight.bold,
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ),
-                                              if (isVerified)
-                                                Padding(
-                                                  padding:
-                                                      const EdgeInsets.only(
-                                                          left: 4),
-                                                  child: Icon(
-                                                    Icons.verified,
-                                                    color: Color(0xFF0083B0),
-                                                    size: 16,
-                                                    shadows: [
-                                                      Shadow(
-                                                        color: const Color(
-                                                                0xFF0083B0)
-                                                            .withOpacity(0.3),
-                                                        blurRadius: 4,
-                                                        offset:
-                                                            const Offset(0, 2),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ),
-                                              Text(
-                                                username,
-                                                style: TextStyle(
-                                                  color: isMe
-                                                      ? Colors.white70
-                                                      : Colors.black54,
-                                                  fontSize: 12,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      // نص الرسالة
-                                      Text(
-                                        message['message'] ?? '',
-                                        style: TextStyle(
-                                          color: isMe
-                                              ? Colors.white
-                                              : Colors.black87,
-                                          fontSize: 16,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      // وقت الإرسال + زر الحذف (الزر يظهر فقط للمشرف)
-                                      Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Text(
-                                            _formatTimestamp(
-                                                message['createdAt']),
-                                            style: TextStyle(
-                                              color: isMe
-                                                  ? Colors.white70
-                                                  : Colors.black54,
-                                              fontSize: 12,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          if (_isAdmin)
-                                            GestureDetector(
-                                              onTap: () async {
-                                                bool? confirm =
-                                                    await showDialog<bool>(
-                                                  context: context,
-                                                  builder:
-                                                      (BuildContext context) {
-                                                    return AlertDialog(
-                                                      title: const Text(
-                                                          'حذف الرسالة'),
-                                                      content: const Text(
-                                                          'هل أنت متأكد من حذف هذه الرسالة؟'),
-                                                      actions: [
-                                                        TextButton(
-                                                          onPressed: () =>
-                                                              Navigator.of(
-                                                                      context)
-                                                                  .pop(false),
-                                                          child: const Text(
-                                                              'إلغاء'),
-                                                        ),
-                                                        TextButton(
-                                                          onPressed: () =>
-                                                              Navigator.of(
-                                                                      context)
-                                                                  .pop(true),
-                                                          child: const Text(
-                                                            'حذف',
-                                                            style: TextStyle(
-                                                                color:
-                                                                    Colors.red),
-                                                          ),
-                                                        ),
-                                                      ],
-                                                    );
-                                                  },
-                                                );
-                                                if (confirm == true) {
-                                                  await FirebaseFirestore
-                                                      .instance
-                                                      .collection('messages')
-                                                      .doc(messages[index].id)
-                                                      .delete();
-                                                  if (context.mounted) {
-                                                    ScaffoldMessenger.of(
-                                                            context)
-                                                        .showSnackBar(
-                                                      const SnackBar(
-                                                        content: Text(
-                                                            'تم حذف الرسالة'),
-                                                        duration: Duration(
-                                                            seconds: 2),
-                                                      ),
-                                                    );
-                                                  }
-                                                }
-                                              },
-                                              child: const Icon(
-                                                Icons.delete_outline,
-                                                size: 16,
-                                                color: Colors.red,
-                                              ),
-                                            ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                if (isMe) _buildAvatar(username),
-                              ],
-                            ),
-                          );
-                        },
-                      );
-                    },
+          // عرض الرسائل
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('messages')
+                  .orderBy('createdAt', descending: false)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return Center(child: Text('حدث خطأ: ${snapshot.error}'));
+                }
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return const Center(
+                    child: Text(
+                      'لا توجد رسائل',
+                      style: TextStyle(fontSize: 16, color: Colors.grey),
+                    ),
                   );
-                },
-              ),
+                }
+                List<DocumentSnapshot> messages = snapshot.data!.docs;
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  _scrollToBottom();
+                });
+                return ListView.builder(
+                  controller: _scrollController,
+                  padding: const EdgeInsets.all(16),
+                  itemCount: messages.length,
+                  itemBuilder: (context, index) {
+                    var message =
+                        messages[index].data() as Map<String, dynamic>;
+                    bool isMe = message['senderId'] ==
+                        FirebaseAuth.instance.currentUser!.uid;
+                    return FutureBuilder<DocumentSnapshot>(
+                      future: FirebaseFirestore.instance
+                          .collection('users')
+                          .doc(message['senderId'])
+                          .get(),
+                      builder: (context, userSnapshot) {
+                        String username = 'U';
+                        bool isMessageUserAdmin = false;
+                        bool isVerified = false;
+                        if (userSnapshot.hasData && userSnapshot.data != null) {
+                          var userData = userSnapshot.data!.data()
+                              as Map<String, dynamic>?;
+                          username = (userData?['username'] ?? 'U').toString();
+                          isMessageUserAdmin = userData?['isAdmin'] ?? false;
+                          isVerified = userData?['isVerified'] ?? false;
+                        }
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Row(
+                            mainAxisAlignment: isMe
+                                ? MainAxisAlignment.end
+                                : MainAxisAlignment.start,
+                            children: [
+                              if (!isMe) _buildAvatar(username),
+                              Container(
+                                constraints: BoxConstraints(
+                                  maxWidth:
+                                      MediaQuery.of(context).size.width * 0.7,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: isMe
+                                      ? Theme.of(context).primaryColor
+                                      : Colors.white,
+                                  borderRadius: BorderRadius.only(
+                                    topLeft: const Radius.circular(16),
+                                    topRight: const Radius.circular(16),
+                                    bottomLeft: Radius.circular(isMe ? 16 : 4),
+                                    bottomRight: Radius.circular(isMe ? 4 : 16),
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.1),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 10),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    // عرض اسم المستخدم + توثيق/مشرف
+                                    if (userSnapshot.hasData &&
+                                        userSnapshot.data != null)
+                                      Padding(
+                                        padding:
+                                            const EdgeInsets.only(bottom: 4),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            if (isMessageUserAdmin)
+                                              Container(
+                                                margin: const EdgeInsets.only(
+                                                    left: 4),
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        horizontal: 8,
+                                                        vertical: 2),
+                                                decoration: BoxDecoration(
+                                                  gradient: LinearGradient(
+                                                    colors: [
+                                                      Colors.purple.shade300,
+                                                      Colors.purple.shade600,
+                                                    ],
+                                                  ),
+                                                  borderRadius:
+                                                      BorderRadius.circular(12),
+                                                  boxShadow: [
+                                                    BoxShadow(
+                                                      color: Colors.purple
+                                                          .withOpacity(0.3),
+                                                      blurRadius: 4,
+                                                      offset:
+                                                          const Offset(0, 2),
+                                                    ),
+                                                  ],
+                                                ),
+                                                child: const Row(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: [
+                                                    Icon(
+                                                      Icons.shield,
+                                                      color: Colors.white,
+                                                      size: 12,
+                                                    ),
+                                                    SizedBox(width: 4),
+                                                    Text(
+                                                      'مشرف',
+                                                      style: TextStyle(
+                                                        color: Colors.white,
+                                                        fontSize: 10,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            if (isVerified)
+                                              Padding(
+                                                padding: const EdgeInsets.only(
+                                                    left: 4),
+                                                child: Icon(
+                                                  Icons.verified,
+                                                  color: Color(0xFF0083B0),
+                                                  size: 16,
+                                                  shadows: [
+                                                    Shadow(
+                                                      color: const Color(
+                                                              0xFF0083B0)
+                                                          .withOpacity(0.3),
+                                                      blurRadius: 4,
+                                                      offset:
+                                                          const Offset(0, 2),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            Text(
+                                              username,
+                                              style: TextStyle(
+                                                color: isMe
+                                                    ? Colors.white70
+                                                    : Colors.black54,
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    // نص الرسالة
+                                    Text(
+                                      message['message'] ?? '',
+                                      style: TextStyle(
+                                        color: isMe
+                                            ? Colors.white
+                                            : Colors.black87,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    // وقت الإرسال + زر الحذف (الزر يظهر فقط للمشرف)
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          _formatTimestamp(
+                                              message['createdAt']),
+                                          style: TextStyle(
+                                            color: isMe
+                                                ? Colors.white70
+                                                : Colors.black54,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        if (_isAdmin)
+                                          GestureDetector(
+                                            onTap: () async {
+                                              bool? confirm =
+                                                  await showDialog<bool>(
+                                                context: context,
+                                                builder:
+                                                    (BuildContext context) {
+                                                  return AlertDialog(
+                                                    title: const Text(
+                                                        'حذف الرسالة'),
+                                                    content: const Text(
+                                                        'هل أنت متأكد من حذف هذه الرسالة؟'),
+                                                    actions: [
+                                                      TextButton(
+                                                        onPressed: () =>
+                                                            Navigator.of(
+                                                                    context)
+                                                                .pop(false),
+                                                        child:
+                                                            const Text('إلغاء'),
+                                                      ),
+                                                      TextButton(
+                                                        onPressed: () =>
+                                                            Navigator.of(
+                                                                    context)
+                                                                .pop(true),
+                                                        child: const Text(
+                                                          'حذف',
+                                                          style: TextStyle(
+                                                              color:
+                                                                  Colors.red),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  );
+                                                },
+                                              );
+                                              if (confirm == true) {
+                                                await FirebaseFirestore.instance
+                                                    .collection('messages')
+                                                    .doc(messages[index].id)
+                                                    .delete();
+                                                if (context.mounted) {
+                                                  ScaffoldMessenger.of(context)
+                                                      .showSnackBar(
+                                                    const SnackBar(
+                                                      content: Text(
+                                                          'تم حذف الرسالة'),
+                                                      duration:
+                                                          Duration(seconds: 2),
+                                                    ),
+                                                  );
+                                                }
+                                              }
+                                            },
+                                            child: const Icon(
+                                              Icons.delete_outline,
+                                              size: 16,
+                                              color: Colors.red,
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              if (isMe) _buildAvatar(username),
+                            ],
+                          ),
+                        );
+                      },
+                    );
+                  },
+                );
+              },
             ),
+          ),
           // إذا كان محظورًا مؤقتًا، نعرض BanCountdownWidget
           if (_isBanned && _banUntil != null)
             BanCountdownWidget(

@@ -1,8 +1,8 @@
-// ignore_for_file: library_private_types_in_public_api, file_names, unused_element, use_build_context_synchronously
+// ignore_for_file: library_private_types_in_public_api, file_names, unused_element, use_build_context_synchronously, deprecated_member_use
 
-import 'package:chat/pages/ChatPage.dart';
 import 'package:chat/pages/SignUpPage.dart';
 import 'package:chat/pages/Support/SupportPage.dart';
+import 'package:chat/pages/HomePage.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -54,7 +54,7 @@ class _LoginPageState extends State<LoginPage> {
       await _setLoginStatus(); // تخزين حالة تسجيل الدخول
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const ChatPage()),
+        MaterialPageRoute(builder: (context) => const HomePage()),
       );
     } catch (e) {
       String errorMessage = 'فشل تسجيل الدخول';

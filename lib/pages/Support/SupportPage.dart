@@ -1,11 +1,12 @@
+// ignore_for_file: file_names, deprecated_member_use
+
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class SupportPage extends StatelessWidget {
-  final String telegram = "@chat77helpbot"; // معرف التليجرام للدعم
+  final String telegram = "chat77helpbot"; // معرف التليجرام للدعم
 
   const SupportPage({super.key});
-
   Future<void> _openTelegram() async {
     final Uri telegramUri = Uri.parse('https://t.me/$telegram');
     try {
