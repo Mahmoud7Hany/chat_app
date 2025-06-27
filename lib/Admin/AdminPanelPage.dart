@@ -1,7 +1,10 @@
+// lib/Admin/AdminPanelPage.dart
 // ignore_for_file: use_build_context_synchronously, file_names, deprecated_member_use
 
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:chat/Admin/AdminSupportTicketsPage.dart'; // استيراد الصفحة الجديدة
+import 'package:chat/Admin/AdminSendNotificationPage.dart'; // Import the new page
 
 class AdminPanelPage extends StatefulWidget {
   const AdminPanelPage({super.key});
@@ -179,6 +182,52 @@ class _AdminPanelPageState extends State<AdminPanelPage> {
                       ),
                     ),
                   ],
+                ),
+                const SizedBox(height: 30),
+                // ** التعديل الجديد: زر إدارة بلاغات الدعم **
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const AdminSupportTicketsPage()),
+                      );
+                    },
+                    icon: const Icon(Icons.receipt_long, color: Colors.white),
+                    label: const Text('إدارة بلاغات الدعم', style: TextStyle(fontSize: 18, color: Colors.white)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.deepPurple,
+                      padding: const EdgeInsets.symmetric(vertical: 15),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 5,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                // New button to send notifications
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const AdminSendNotificationPage()),
+                      );
+                    },
+                    icon: const Icon(Icons.notifications_active, color: Colors.white),
+                    label: const Text('إرسال إشعار', style: TextStyle(fontSize: 18, color: Colors.white)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.teal,
+                      padding: const EdgeInsets.symmetric(vertical: 15),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 5,
+                    ),
+                  ),
                 ),
               ],
             ),

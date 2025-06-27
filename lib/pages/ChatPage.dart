@@ -1,7 +1,8 @@
-// ignore_for_file: deprecated_member_use, library_private_types_in_public_api, file_names
+// lib/pages/ChatPage.dart
+// ignore_for_file: deprecated_member_use, library_private_types_in_public_api, file_names, use_build_context_synchronously
 
 import 'package:chat/pages/Support/SupportPage.dart';
-import 'package:chat/widgets/BanCountdownWidget.dart'; 
+import 'package:chat/widgets/BanCountdownWidget.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -16,41 +17,70 @@ class ChatPage extends StatefulWidget {
 class _ChatPageState extends State<ChatPage> {
   final _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  final currentUser = FirebaseAuth.instance.currentUser!;
 
   // متغيرات حالة المستخدم
   bool _isBanned = false;
   DateTime? _banUntil;
   String? _banReason;
   bool _isAdmin = false; // متغير لتحديد حالة المشرف
+  bool _canViewMessages = true; // NEW: Added this variable definition
 
   @override
   void initState() {
     super.initState();
-    // الاشتراك في مستند المستخدم فقط، بدون مؤقت
+    // الاشتراك في مستند المستخدم لمتابعة حالة الحظر ومشاهدة الرسائل
     FirebaseFirestore.instance
         .collection('users')
-        .doc(FirebaseAuth.instance.currentUser!.uid)
+        .doc(currentUser.uid)
         .snapshots()
         .listen((doc) {
       if (doc.exists) {
         var data = doc.data() as Map<String, dynamic>;
         setState(() {
+          _canViewMessages = data['canViewMessages'] ?? true;
           _isBanned = data['isBanned'] ?? false;
-          _banReason = data['banReason'];
           _banUntil = data['banUntil'] != null
               ? (data['banUntil'] as Timestamp).toDate()
               : null;
+          _banReason = data['banReason'];
           _isAdmin = data['isAdmin'] ?? false; // تحديث حالة المشرف
         });
       }
     });
+
+    // استدعاء دالة تحديث الرسائل كمقروءة عند دخول الصفحة
+    _markAllMessagesAsRead();
+  }
+  
+  // دالة جديدة لتحديث الرسائل كمقروءة عند دخول المستخدم للصفحة
+  Future<void> _markAllMessagesAsRead() async {
+    final messagesSnapshot = await FirebaseFirestore.instance
+        .collection('messages')
+        .where('senderId', isNotEqualTo: currentUser.uid)
+        .get();
+
+    WriteBatch batch = FirebaseFirestore.instance.batch();
+
+    for (var doc in messagesSnapshot.docs) {
+      final messageData = doc.data() as Map<String, dynamic>;
+      List<dynamic> readBy = messageData['readBy'] ?? [];
+      // Check if the current user has not read the message yet
+      if (!readBy.contains(currentUser.uid)) {
+        // Update the 'readBy' array for this message
+        batch.update(doc.reference, {
+          'readBy': FieldValue.arrayUnion([currentUser.uid])
+        });
+      }
+    }
+    await batch.commit();
   }
 
   // دالة لرفع الحظر تلقائيًا (يتم استدعاؤها من داخل BanCountdownWidget)
   Future<void> _unbanUser() async {
     await FirebaseFirestore.instance
         .collection('users')
-        .doc(FirebaseAuth.instance.currentUser!.uid)
+        .doc(currentUser.uid)
         .update({
       'isBanned': false,
       'banReason': null,
@@ -68,8 +98,9 @@ class _ChatPageState extends State<ChatPage> {
     if (_messageController.text.isEmpty) return;
     await FirebaseFirestore.instance.collection('messages').add({
       'message': _messageController.text,
-      'senderId': FirebaseAuth.instance.currentUser!.uid,
+      'senderId': currentUser.uid,
       'createdAt': FieldValue.serverTimestamp(),
+      'readBy': [currentUser.uid], // NEW: Mark message as read by sender
     });
     _messageController.clear();
     _scrollToBottom();
@@ -148,14 +179,37 @@ class _ChatPageState extends State<ChatPage> {
           ),
         ),
         actions: [
-          // زر الدعم
-          IconButton(
-            icon: const Icon(Icons.support_agent, color: Colors.black),
-            tooltip: 'الدعم',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const SupportPage()),
+          // زر الدعم مع شارة الإشعار
+          StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('supportTickets')
+                .where('userId', isEqualTo: FirebaseAuth.instance.currentUser!.uid)
+                .where('hasUnreadAdminReply', isEqualTo: true)
+                .snapshots(),
+            builder: (context, snapshot) {
+              final hasUnreadReplies = snapshot.hasData && snapshot.data!.docs.isNotEmpty;
+              return Stack(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.support_agent, color: Colors.white),
+                    tooltip: 'الدعم',
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const SupportPage()),
+                      );
+                    },
+                  ),
+                  if (hasUnreadReplies)
+                    const Positioned(
+                      right: 8,
+                      top: 8,
+                      child: CircleAvatar(
+                        radius: 5,
+                        backgroundColor: Colors.red,
+                      ),
+                    ),
+                ],
               );
             },
           ),

@@ -1,4 +1,4 @@
-// ignore_for_file: use_super_parameters, file_names, avoid_print, prefer_null_aware_operators, use_build_context_synchronously
+// ignore_for_file: file_names, library_private_types_in_public_api, use_super_parameters, avoid_print, prefer_null_aware_operators, use_build_context_synchronously
 
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -116,6 +116,10 @@ class PrivateChatsListPage extends StatelessWidget {
                   if (otherUserId.isEmpty) {
                     return const SizedBox();
                   }
+                  
+                  // Check for unread status for the current user
+                  bool hasUnread = chatData['hasUnreadMessagesFor_$currentUserId'] ?? false;
+                  
                   return FutureBuilder<DocumentSnapshot>(
                     future: FirebaseFirestore.instance
                         .collection('users')
@@ -235,6 +239,23 @@ class PrivateChatsListPage extends StatelessWidget {
                                   style: const TextStyle(
                                       fontSize: 12, color: Colors.grey),
                                 ),
+                                if (hasUnread)
+                                  Container(
+                                    margin: const EdgeInsets.only(left: 8),
+                                    padding: const EdgeInsets.all(6),
+                                    decoration: const BoxDecoration(
+                                      color: Colors.red,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Text(
+                                      '1', // Can be replaced with unread count
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
                               ],
                             ),
                             subtitle: Padding(
@@ -286,3 +307,6 @@ class PrivateChatsListPage extends StatelessWidget {
     );
   }
 }
+
+// لا حاجة لتعديل هنا لأن عرض الدردشات يعتمد على وجود مستند في private_chats
+// بعد تعديل PrivateChatPage ستظهر الدردشة تلقائياً بعد أول رسالة

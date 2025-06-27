@@ -1,3 +1,4 @@
+// lib/pages/chatPrivate/PrivateChatPage.dart
 // ignore_for_file: file_names, library_private_types_in_public_api, use_super_parameters, deprecated_member_use, use_build_context_synchronously
 
 import 'package:flutter/material.dart';
@@ -19,6 +20,7 @@ class PrivateChatPage extends StatefulWidget {
 class _PrivateChatPageState extends State<PrivateChatPage> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  final currentUser = FirebaseAuth.instance.currentUser!;
   bool _isAdmin = false;
 
   @override
@@ -27,7 +29,7 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
     // جلب حالة المشرف للمستخدم الحالي من مجموعة "users"
     FirebaseFirestore.instance
         .collection('users')
-        .doc(FirebaseAuth.instance.currentUser!.uid)
+        .doc(currentUser.uid)
         .get()
         .then((doc) {
       if (doc.exists) {
@@ -35,6 +37,20 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
           _isAdmin = doc.data()?['isAdmin'] ?? false;
         });
       }
+    });
+
+    // Mark messages as read when the chat page is opened
+    _markMessagesAsRead();
+  }
+
+  // دالة جديدة لتحديث رسائل الطرف الآخر كمقروءة
+  void _markMessagesAsRead() async {
+    // Update the main chat document to mark messages as read for the current user.
+    await FirebaseFirestore.instance
+        .collection('private_chats')
+        .doc(widget.chatId)
+        .update({
+      'hasUnreadMessagesFor_${currentUser.uid}': false,
     });
   }
 
@@ -44,28 +60,40 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
     if (message.isEmpty) return;
 
     String currentUserId = FirebaseAuth.instance.currentUser!.uid;
+    String otherUserId = widget.otherUserId;
+    String chatId = widget.chatId;
+
+    // تحقق من وجود مستند الدردشة، إذا لم يوجد أنشئه
+    final chatDocRef = FirebaseFirestore.instance.collection('private_chats').doc(chatId);
+    final chatDoc = await chatDocRef.get();
+    if (!chatDoc.exists) {
+      await chatDocRef.set({
+        'users': [currentUserId, otherUserId],
+        'lastMessage': message,
+        'timestamp': FieldValue.serverTimestamp(),
+        'lastMessageSenderId': currentUserId,
+        'hasUnreadMessagesFor_$otherUserId': true,
+        'hasUnreadMessagesFor_$currentUserId': false,
+      });
+    }
 
     // إضافة الرسالة إلى مجموعة "messages" الفرعية داخل الدردشة الخاصة
-    await FirebaseFirestore.instance
-        .collection('private_chats')
-        .doc(widget.chatId)
-        .collection('messages')
-        .add({
+    await chatDocRef.collection('messages').add({
       'senderId': currentUserId,
       'message': message,
       'timestamp': FieldValue.serverTimestamp(),
+      'isRead': false,
     });
 
-    // تحديث الحقل lastMessage في المستند الرئيسي للدردشة
-    await FirebaseFirestore.instance
-        .collection('private_chats')
-        .doc(widget.chatId)
-        .update({
+    // تحديث الحقل lastMessage في المستند الرئيسي للدردشة وتعيين علامة "غير مقروء" للطرف الآخر
+    await chatDocRef.update({
       'lastMessage': message,
       'timestamp': FieldValue.serverTimestamp(),
+      'lastMessageSenderId': currentUserId,
+      'hasUnreadMessagesFor_$otherUserId': true,
     });
 
-    _messageController.clear();
+    _messageController.clear(); // تصفير الحقل دائماً بعد الإرسال
     _scrollController.animateTo(
       _scrollController.position.maxScrollExtent,
       duration: const Duration(milliseconds: 300),
@@ -139,66 +167,82 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
           ),
         ),
         // تعديل العنوان ليعرض بيانات المستخدم الآخر (اسم المستخدم، التوثيق، والمشرف)
-        title: FutureBuilder<DocumentSnapshot>(
-          future: FirebaseFirestore.instance
+        title: StreamBuilder<DocumentSnapshot>(
+          stream: FirebaseFirestore.instance
               .collection('users')
               .doc(widget.otherUserId)
-              .get(),
+              .snapshots(), // Use snapshots for real-time updates
           builder: (context, snapshot) {
             if (snapshot.hasData && snapshot.data != null) {
               final userData = snapshot.data!.data() as Map<String, dynamic>;
               String username = userData['username'] ?? 'User';
               bool isAdmin = userData['isAdmin'] ?? false;
               bool isVerified = userData['isVerified'] ?? false;
-              return Row(
+              bool isOnline = userData['isOnline'] ?? false;
+              
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  Row(
+                    children: [
+                      Text(
+                        username,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          fontSize: 18,
+                        ),
+                      ),
+                      if (isVerified)
+                        const Padding(
+                          padding: EdgeInsets.only(left: 6, right: 4),
+                          child: Icon(Icons.verified,
+                              color: Color.fromARGB(255, 56, 231, 3), size: 20),
+                        ),
+                      if (isAdmin)
+                        Container(
+                          margin: const EdgeInsets.only(left: 4),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                Colors.purple.shade300,
+                                Colors.purple.shade600,
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.purple.withOpacity(0.3),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: const Text(
+                            'مشرف',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  // Display online/offline status
                   Text(
-                    username,
+                    isOnline ? 'متصل الآن' : 'غير متصل',
                     style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                      color: isOnline ? Colors.greenAccent : Colors.grey.shade300,
+                      fontSize: 12,
                     ),
                   ),
-                  if (isVerified)
-                    const Padding(
-                      padding: EdgeInsets.only(left: 6, right: 4),
-                      child: Icon(Icons.verified,
-                          color: Color.fromARGB(255, 56, 231, 3), size: 20),
-                    ),
-                  if (isAdmin)
-                    Container(
-                      margin: const EdgeInsets.only(left: 4),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            Colors.purple.shade300,
-                            Colors.purple.shade600,
-                          ],
-                        ),
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.purple.withOpacity(0.3),
-                            blurRadius: 4,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: const Text(
-                        'مشرف',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
                 ],
               );
             } else {
-              return Text(
+              return const Text(
                 'دردشة خاصة',
                 style: TextStyle(
                   color: Colors.white,
