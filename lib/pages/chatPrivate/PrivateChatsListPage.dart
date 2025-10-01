@@ -9,16 +9,7 @@ import 'PrivateChatPage.dart';
 class PrivateChatsListPage extends StatelessWidget {
   const PrivateChatsListPage({Key? key}) : super(key: key);
 
-  // دالة لحفظ الرسالة الأخيرة في Cloud Firestore
-  Future<void> saveLastMessage(String chatId, String message) async {
-    await FirebaseFirestore.instance
-        .collection('private_chats')
-        .doc(chatId)
-        .update({
-      'lastMessage': message,
-      'timestamp': Timestamp.now(),
-    });
-  }
+  // إزالة دالة saveLastMessage لأنها غير ضرورية الآن
 
   // دالة لتنسيق الوقت بنظام 12 ساعة مع عرض التاريخ إذا كانت الرسالة من أيام سابقة
   String _formatTimestamp(DateTime dateTime) {
@@ -163,138 +154,176 @@ class PrivateChatsListPage extends StatelessWidget {
                       String formattedTime =
                           lastTime != null ? _formatTimestamp(lastTime) : '';
 
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 8),
-                        child: Card(
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          elevation: 3,
-                          child: ListTile(
-                            contentPadding: const EdgeInsets.all(16),
-                            leading: CircleAvatar(
-                              radius: 25,
-                              backgroundImage: profilePic != null
-                                  ? NetworkImage(profilePic)
-                                  : null,
-                              child: profilePic == null
-                                  ? const Icon(Icons.person, size: 25)
-                                  : null,
-                            ),
-                            title: Row(
-                              children: [
-                                Expanded(
-                                  child: Row(
-                                    children: [
-                                      Flexible(
+                      return StreamBuilder<QuerySnapshot>(
+                        stream: FirebaseFirestore.instance
+                            .collection('private_chats')
+                            .doc(chats[index].id)
+                            .collection('messages')
+                            .where('senderId', isEqualTo: otherUserId)
+                            .where('isRead', isEqualTo: false)
+                            .snapshots(),
+                        builder: (context, unreadSnapshot) {
+                          int unreadCount = 0;
+                          if (unreadSnapshot.hasData) {
+                            unreadCount = unreadSnapshot.data!.docs.length;
+                          }
+
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 8),
+                            child: Card(
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              elevation: 3,
+                              child: ListTile(
+                                contentPadding: const EdgeInsets.all(16),
+                                leading: CircleAvatar(
+                                  radius: 25,
+                                  backgroundImage: profilePic != null
+                                      ? NetworkImage(profilePic)
+                                      : null,
+                                  child: profilePic == null
+                                      ? const Icon(Icons.person, size: 25)
+                                      : null,
+                                ),
+                                title: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Row(
+                                        children: [
+                                          Flexible(
+                                            child: Text(
+                                              username,
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 16,
+                                              ),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                          if (isVerified)
+                                            const Padding(
+                                              padding: EdgeInsets.only(left: 4),
+                                              child: Icon(
+                                                Icons.verified,
+                                                color: Color(0xFF0083B0),
+                                                size: 16,
+                                              ),
+                                            ),
+                                          if (isAdmin)
+                                            Container(
+                                              margin: const EdgeInsets.only(left: 4),
+                                              padding: const EdgeInsets.symmetric(
+                                                  horizontal: 8, vertical: 2),
+                                              decoration: BoxDecoration(
+                                                gradient: const LinearGradient(
+                                                  colors: [
+                                                    Color(0xFFFFD700),  // ذهبي فاتح
+                                                    Color(0xFFB8860B),  // ذهبي داكن
+                                                  ],
+                                                ),
+                                                borderRadius: BorderRadius.circular(6),
+                                                boxShadow: const [
+                                                  BoxShadow(
+                                                    color: Color(0xFFFFD700),
+                                                    blurRadius: 3,
+                                                    offset: Offset(0, 1),
+                                                  ),
+                                                ],
+                                              ),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: const [
+                                                  Icon(
+                                                    Icons.workspace_premium,
+                                                    color: Colors.white,
+                                                    size: 12,
+                                                  ),
+                                                  SizedBox(width: 4),
+                                                  Text(
+                                                    'مشرف',
+                                                    style: TextStyle(
+                                                      color: Colors.white,
+                                                      fontSize: 10,
+                                                      fontWeight: FontWeight.bold,
+                                                      shadows: [
+                                                        Shadow(
+                                                          color: Colors.black26,
+                                                          blurRadius: 2,
+                                                          offset: Offset(0, 1),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                    Text(
+                                      formattedTime,
+                                      style: const TextStyle(
+                                          fontSize: 12, color: Colors.grey),
+                                    ),
+                                    if (hasUnread && unreadCount > 0)
+                                      Container(
+                                        margin: const EdgeInsets.only(left: 8),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 6,
+                                          vertical: 4,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.red,
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
                                         child: Text(
-                                          username,
+                                          unreadCount.toString(),
                                           style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 12,
                                             fontWeight: FontWeight.bold,
-                                            fontSize: 16,
                                           ),
-                                          overflow: TextOverflow.ellipsis,
                                         ),
                                       ),
-                                      if (isVerified)
-                                        const Padding(
-                                          padding: EdgeInsets.only(left: 4),
-                                          child: Icon(
-                                            Icons.verified,
-                                            color: Color(0xFF0083B0),
-                                            size: 16,
-                                          ),
-                                        ),
-                                      if (isAdmin)
-                                        Container(
-                                          margin:
-                                              const EdgeInsets.only(left: 4),
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 6, vertical: 2),
-                                          decoration: BoxDecoration(
-                                            gradient: LinearGradient(
-                                              colors: [
-                                                Colors.purple.shade300,
-                                                Colors.purple.shade600,
-                                              ],
-                                            ),
-                                            borderRadius:
-                                                BorderRadius.circular(12),
-                                          ),
-                                          child: const Text(
-                                            'مشرف',
-                                            style: TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 10,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ),
-                                    ],
+                                  ],
+                                ),
+                                subtitle: Padding(
+                                  padding: const EdgeInsets.only(top: 8.0),
+                                  child: Text(
+                                    lastMessage,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                        fontSize: 14, color: Colors.black87),
                                   ),
                                 ),
-                                Text(
-                                  formattedTime,
-                                  style: const TextStyle(
-                                      fontSize: 12, color: Colors.grey),
-                                ),
-                                if (hasUnread)
-                                  Container(
-                                    margin: const EdgeInsets.only(left: 8),
-                                    padding: const EdgeInsets.all(6),
-                                    decoration: const BoxDecoration(
-                                      color: Colors.red,
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: const Text(
-                                      '1', // Can be replaced with unread count
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
+                                onTap: () {
+                                  if (isBanned) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                            'لا يمكنك التواصل لأن حسابك محظور.'),
+                                        duration: Duration(seconds: 2),
+                                      ),
+                                    );
+                                    return;
+                                  }
+
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (context) => PrivateChatPage(
+                                        chatId: chats[index].id,
+                                        otherUserId: otherUserId,
                                       ),
                                     ),
-                                  ),
-                              ],
-                            ),
-                            subtitle: Padding(
-                              padding: const EdgeInsets.only(top: 8.0),
-                              child: Text(
-                                lastMessage,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                    fontSize: 14, color: Colors.black87),
+                                  );
+                                },
                               ),
                             ),
-                            onTap: () async {
-                              // إذا كان المستخدم محظورًا فلا يتم الانتقال بل يتم عرض رسالة تنبيه
-                              if (isBanned) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                        'لا يمكنك التواصل لأن حسابك محظور.'),
-                                    duration: Duration(seconds: 2),
-                                  ),
-                                );
-                                return;
-                              }
-                              // تحديث الرسالة الأخيرة قبل الانتقال إلى صفحة الدردشة
-                              await saveLastMessage(
-                                  chats[index].id, lastMessage);
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => PrivateChatPage(
-                                    chatId: chats[index].id,
-                                    otherUserId: otherUserId,
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
+                          );
+                        }
                       );
                     },
                   );

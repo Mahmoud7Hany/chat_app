@@ -413,21 +413,9 @@ class _AdminPanelPageState extends State<AdminPanelPage> {
           bottom: const TabBar(
             tabs: [
               Tab(text: 'الإحصائيات'),
-              Tab(text: 'المستخدمين'),
+              Tab(text: 'قائيمه توثيق واشراف المستخدمين'),
             ],
           ),
-          // actions: [
-          //   IconButton(
-          //     icon: const Icon(Icons.people),
-          //     tooltip: 'إدارة المستخدمين',
-          //     onPressed: () {
-          //       Navigator.push(
-          //         context,
-          //         MaterialPageRoute(builder: (context) => const AllUsersPage()),
-          //       );
-          //     },
-          //   ),
-          // ],
         ),
         body: TabBarView(
           children: [

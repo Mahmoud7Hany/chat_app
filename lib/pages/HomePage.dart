@@ -142,9 +142,33 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'Chat',
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+        title: StreamBuilder<DocumentSnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('users')
+              .doc(FirebaseAuth.instance.currentUser!.uid)
+              .snapshots(),
+          builder: (context, snapshot) {
+            if (!snapshot.hasData ||
+                snapshot.data == null ||
+                snapshot.data!.data() == null) {
+              return const Text(
+                'تحميل...',
+                style:
+                    TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+              );
+            }
+            final userData = snapshot.data!.data() as Map<String, dynamic>?;
+            final username = (userData != null &&
+                    userData['username'] != null &&
+                    (userData['username'] as String).trim().isNotEmpty)
+                ? userData['username'] as String
+                : 'مستخدم';
+            return Text(
+              username,
+              style: const TextStyle(
+                  fontWeight: FontWeight.bold, color: Colors.white),
+            );
+          },
         ),
         flexibleSpace: Container(
           decoration: BoxDecoration(
@@ -178,11 +202,14 @@ class _HomePageState extends State<HomePage> {
           StreamBuilder<QuerySnapshot>(
             stream: FirebaseFirestore.instance
                 .collection('notifications')
-                .where('recipientId', isEqualTo: FirebaseAuth.instance.currentUser!.uid)
-                .where('isRead', isEqualTo: false) // Filter unread notifications
+                .where('recipientId',
+                    isEqualTo: FirebaseAuth.instance.currentUser!.uid)
+                .where('isRead',
+                    isEqualTo: false) // Filter unread notifications
                 .snapshots(),
             builder: (context, snapshot) {
-              final hasUnreadNotifications = snapshot.hasData && snapshot.data!.docs.isNotEmpty;
+              final hasUnreadNotifications =
+                  snapshot.hasData && snapshot.data!.docs.isNotEmpty;
               return Stack(
                 children: [
                   IconButton(
@@ -191,7 +218,8 @@ class _HomePageState extends State<HomePage> {
                     onPressed: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => const NotificationsPage()),
+                        MaterialPageRoute(
+                            builder: (context) => const NotificationsPage()),
                       );
                     },
                   ),
@@ -212,11 +240,13 @@ class _HomePageState extends State<HomePage> {
           StreamBuilder<QuerySnapshot>(
             stream: FirebaseFirestore.instance
                 .collection('supportTickets')
-                .where('userId', isEqualTo: FirebaseAuth.instance.currentUser!.uid)
+                .where('userId',
+                    isEqualTo: FirebaseAuth.instance.currentUser!.uid)
                 .where('hasUnreadAdminReply', isEqualTo: true)
                 .snapshots(),
             builder: (context, snapshot) {
-              final hasUnreadReplies = snapshot.hasData && snapshot.data!.docs.isNotEmpty;
+              final hasUnreadReplies =
+                  snapshot.hasData && snapshot.data!.docs.isNotEmpty;
               return Stack(
                 children: [
                   IconButton(
@@ -225,7 +255,8 @@ class _HomePageState extends State<HomePage> {
                     onPressed: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => const SupportPage()),
+                        MaterialPageRoute(
+                            builder: (context) => const SupportPage()),
                       );
                     },
                   ),
@@ -291,13 +322,15 @@ class _HomePageState extends State<HomePage> {
                   .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.hasData && snapshot.data!.exists) {
-                  final userData = snapshot.data!.data() as Map<String, dynamic>?;
+                  final userData =
+                      snapshot.data!.data() as Map<String, dynamic>?;
                   final bool isAdmin = userData?['isAdmin'] ?? false;
                   if (isAdmin) {
                     return _buildAdminPanelBanner(context); // عرض بانر المشرف
                   }
                 }
-                return const SizedBox.shrink(); // لا تعرض أي شيء إذا لم يكن مشرفًا
+                return const SizedBox
+                    .shrink(); // لا تعرض أي شيء إذا لم يكن مشرفًا
               },
             ),
 
@@ -305,14 +338,16 @@ class _HomePageState extends State<HomePage> {
             if (_isUpdateAvailable)
               Card(
                 elevation: 4,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16)),
                 margin: const EdgeInsets.only(bottom: 20),
                 color: Colors.red.shade100,
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: Row(
                     children: [
-                      Icon(Icons.system_update_alt, color: Colors.red.shade700, size: 30),
+                      Icon(Icons.system_update_alt,
+                          color: Colors.red.shade700, size: 30),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Column(
@@ -329,7 +364,8 @@ class _HomePageState extends State<HomePage> {
                             const SizedBox(height: 4),
                             Text(
                               'قم بتحديث التطبيق الآن للحصول على أفضل تجربة.',
-                              style: TextStyle(fontSize: 14, color: Colors.red.shade600),
+                              style: TextStyle(
+                                  fontSize: 14, color: Colors.red.shade600),
                             ),
                           ],
                         ),
@@ -342,8 +378,10 @@ class _HomePageState extends State<HomePage> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.red,
                           foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 8),
                         ),
                       ),
                     ],
@@ -382,27 +420,31 @@ class _HomePageState extends State<HomePage> {
                 ? _banUntil != null
                     ? Card(
                         elevation: 4,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16)),
                         color: Colors.red.shade50,
                         child: Padding(
                           padding: const EdgeInsets.all(16.0),
                           child: BanCountdownWidget(
                             banUntil: _banUntil!,
                             banReason: _banReason,
-                            onBanEnd: _unbanUser, // **تمت إضافة المعامل المطلوب هنا**
+                            onBanEnd:
+                                _unbanUser, // **تمت إضافة المعامل المطلوب هنا**
                           ),
                         ),
                       )
                     : Card(
                         elevation: 4,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16)),
                         color: Colors.red.shade50,
                         child: Padding(
                           padding: const EdgeInsets.all(16.0),
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.gpp_bad, size: 60, color: Colors.red.shade700),
+                              Icon(Icons.gpp_bad,
+                                  size: 60, color: Colors.red.shade700),
                               const SizedBox(height: 16),
                               Text(
                                 'تم إيقاف حسابك بشكل دائم.',
@@ -418,14 +460,18 @@ class _HomePageState extends State<HomePage> {
                                   padding: const EdgeInsets.only(top: 8.0),
                                   child: Text(
                                     'السبب: $_banReason',
-                                    style: TextStyle(fontSize: 14, color: Colors.red.shade600),
+                                    style: TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.red.shade600),
                                     textAlign: TextAlign.center,
                                   ),
                                 ),
                               const SizedBox(height: 16),
                               ElevatedButton.icon(
-                                icon: const Icon(Icons.support_agent, color: Colors.white),
-                                label: const Text('تواصل مع الدعم', style: TextStyle(color: Colors.white)),
+                                icon: const Icon(Icons.support_agent,
+                                    color: Colors.white),
+                                label: const Text('تواصل مع الدعم',
+                                    style: TextStyle(color: Colors.white)),
                                 onPressed: () {
                                   Navigator.push(
                                     context,
@@ -436,8 +482,10 @@ class _HomePageState extends State<HomePage> {
                                 },
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Colors.red.shade500,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12)),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 20, vertical: 10),
                                 ),
                               ),
                             ],
@@ -445,12 +493,12 @@ class _HomePageState extends State<HomePage> {
                         ),
                       )
                 : Card(
-                    elevation: 4,
+                    elevation: 2,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(17),
                     ),
                     child: Padding(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(15),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -465,7 +513,9 @@ class _HomePageState extends State<HomePage> {
                                   color: Theme.of(context).primaryColor,
                                 ),
                               ),
-                              Icon(Icons.group, size: 28, color: Theme.of(context).primaryColor),
+                              Icon(Icons.group,
+                                  size: 28,
+                                  color: Theme.of(context).primaryColor),
                             ],
                           ),
                           const SizedBox(height: 16),
@@ -512,40 +562,69 @@ class _HomePageState extends State<HomePage> {
                                   return username.contains(searchQuery);
                                 }).toList();
 
-                                // ترتيب المستخدمين (المشرفون أولاً)
-                                filteredUsers.sort((a, b) {
-                                  bool aIsAdmin = (a.data() as Map<String, dynamic>)['isAdmin'] ?? false;
-                                  bool bIsAdmin = (b.data() as Map<String, dynamic>)['isAdmin'] ?? false;
-
-                                  if (aIsAdmin && !bIsAdmin) {
-                                    return -1; // a (admin) comes before b
-                                  } else if (!aIsAdmin && bIsAdmin) {
-                                    return 1; // b (admin) comes before a
+                                // تقسيم المستخدمين إلى مشرفين وغير مشرفين
+                                List<QueryDocumentSnapshot> admins = [];
+                                List<QueryDocumentSnapshot> normalUsers = [];
+                                for (var doc in filteredUsers) {
+                                  final data =
+                                      doc.data() as Map<String, dynamic>;
+                                  if (data['isAdmin'] == true) {
+                                    admins.add(doc);
                                   } else {
-                                    // إذا كانا كلاهما مشرفين أو كلاهما غير مشرفين، رتب حسب اسم المستخدم
-                                    String aUsername = (a.data() as Map<String, dynamic>)['username'] ?? '';
-                                    String bUsername = (b.data() as Map<String, dynamic>)['username'] ?? '';
-                                    return aUsername.compareTo(bUsername);
+                                    normalUsers.add(doc);
                                   }
+                                }
+
+                                // ترتيب المشرفين من الأقدم للأحدث (حسب createdAt)
+                                admins.sort((a, b) {
+                                  final aCreated =
+                                      (a['createdAt'] as Timestamp?)
+                                              ?.toDate() ??
+                                          DateTime(2000);
+                                  final bCreated =
+                                      (b['createdAt'] as Timestamp?)
+                                              ?.toDate() ??
+                                          DateTime(2000);
+                                  return aCreated.compareTo(
+                                      bCreated); // تصاعدي (الأقدم أولاً)
                                 });
 
+                                // ترتيب المستخدمين من الأحدث للأقدم (حسب createdAt)
+                                normalUsers.sort((a, b) {
+                                  final aCreated =
+                                      (a['createdAt'] as Timestamp?)
+                                              ?.toDate() ??
+                                          DateTime(2000);
+                                  final bCreated =
+                                      (b['createdAt'] as Timestamp?)
+                                              ?.toDate() ??
+                                          DateTime(2000);
+                                  return bCreated.compareTo(
+                                      aCreated); // تنازلي (الأحدث أولاً)
+                                });
 
-                                if (filteredUsers.isEmpty) {
+                                // دمج القوائم: المشرفين أولاً ثم المستخدمين
+                                var finalList = [...admins, ...normalUsers];
+
+                                if (finalList.isEmpty) {
                                   return Center(
                                     child: Text(
-                                      searchQuery.isEmpty ? 'لا يوجد مستخدمون حاليًا.' : 'لا يوجد مستخدم بهذا الاسم.',
-                                      style: const TextStyle(color: Colors.grey, fontSize: 16),
+                                      searchQuery.isEmpty
+                                          ? 'لا يوجد مستخدمون حاليًا.'
+                                          : 'لا يوجد مستخدم بهذا الاسم.',
+                                      style: const TextStyle(
+                                          color: Colors.grey, fontSize: 16),
                                       textAlign: TextAlign.center,
                                     ),
                                   );
                                 }
 
                                 return ListView.builder(
-                                  itemCount: filteredUsers.length,
+                                  itemCount: finalList.length,
                                   itemBuilder: (context, index) {
-                                    var user = filteredUsers[index].data()
+                                    var user = finalList[index].data()
                                         as Map<String, dynamic>;
-                                    var userId = filteredUsers[index].id;
+                                    var userId = finalList[index].id;
                                     bool isAdmin = user['isAdmin'] ?? false;
                                     bool isVerified =
                                         user['isVerified'] ?? false;
@@ -559,55 +638,86 @@ class _HomePageState extends State<HomePage> {
                                       decoration: isAdmin
                                           ? BoxDecoration(
                                               borderRadius: BorderRadius.circular(12),
+                                              gradient: LinearGradient(
+                                                colors: [
+                                                  Colors.amber.shade100,
+                                                  Colors.white,
+                                                ],
+                                                begin: Alignment.topLeft,
+                                                end: Alignment.bottomRight,
+                                              ),
                                               border: Border.all(
-                                                color: Colors.amber.shade700, // لون ذهبي
-                                                width: 2.5, // سمك الإطار
+                                                color: const Color(0xFFD4AF37),
+                                                width: 2,
                                               ),
                                               boxShadow: [
                                                 BoxShadow(
-                                                  color: Colors.amber.shade200.withOpacity(0.5),
+                                                  color: Colors.amber.shade200.withOpacity(0.3),
                                                   blurRadius: 8,
-                                                  spreadRadius: 2,
+                                                  spreadRadius: 1,
                                                 ),
                                               ],
                                             )
-                                          : null, // لا يوجد decoration للمستخدمين العاديين
+                                          : null,
                                       child: Card(
-                                        elevation: 2,
+                                        elevation: isAdmin ? 3 : 1,
+                                        color: isAdmin ? Colors.white : null,
                                         shape: RoundedRectangleBorder(
                                             borderRadius: BorderRadius.circular(12)),
                                         child: ListTile(
-                                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                          leading: CircleAvatar(
-                                            radius: 28,
-                                            backgroundImage: profilePic != null
-                                                ? NetworkImage(profilePic)
-                                                : null,
-                                            backgroundColor: profilePic == null
-                                                ? Theme.of(context).primaryColor.withOpacity(0.1)
-                                                : null,
-                                            child: profilePic == null
-                                                ? Text(
-                                                    username.isNotEmpty
-                                                        ? username[0]
-                                                            .toUpperCase()
-                                                        : "U",
-                                                    style: TextStyle(
-                                                        color: Theme.of(context).primaryColor,
-                                                        fontWeight:
-                                                            FontWeight.bold,
-                                                        fontSize: 24),
-                                                  )
-                                                : null,
+                                          contentPadding: const EdgeInsets.symmetric(
+                                              horizontal: 12, vertical: 8),
+                                          leading: Stack(
+                                            children: [
+                                              CircleAvatar(
+                                                radius: 28,
+                                                backgroundImage: profilePic != null
+                                                    ? NetworkImage(profilePic)
+                                                    : null,
+                                                backgroundColor: profilePic == null
+                                                    ? Theme.of(context).primaryColor.withOpacity(0.1)
+                                                    : null,
+                                                child: profilePic == null
+                                                    ? Text(
+                                                        username.isNotEmpty
+                                                            ? username[0].toUpperCase()
+                                                            : "U",
+                                                        style: TextStyle(
+                                                          color: Theme.of(context).primaryColor,
+                                                          fontWeight: FontWeight.bold,
+                                                          fontSize: 24,
+                                                        ),
+                                                      )
+                                                    : null,
+                                              ),
+                                              if (isAdmin)
+                                                Positioned(
+                                                  bottom: 0,
+                                                  right: 0,
+                                                  child: Container(
+                                                    padding: const EdgeInsets.all(2),
+                                                    decoration: const BoxDecoration(
+                                                      color: Colors.white,
+                                                      shape: BoxShape.circle,
+                                                    ),
+                                                    child: const Icon(
+                                                      Icons.verified_user,
+                                                      size: 16,
+                                                      color: Color(0xFFD4AF37),
+                                                    ),
+                                                  ),
+                                                ),
+                                            ],
                                           ),
                                           title: Row(
                                             children: [
                                               Expanded(
                                                 child: Text(
                                                   username,
-                                                  style: const TextStyle(
+                                                  style: TextStyle(
                                                     fontWeight: FontWeight.bold,
                                                     fontSize: 16,
+                                                    color: isAdmin ? const Color(0xFFD4AF37) : null,
                                                   ),
                                                   overflow: TextOverflow.ellipsis,
                                                 ),
@@ -615,43 +725,66 @@ class _HomePageState extends State<HomePage> {
                                               if (isVerified)
                                                 const Padding(
                                                   padding: EdgeInsets.only(left: 4),
-                                                  child: Icon(Icons.verified,
-                                                      color: Color(0xFF0083B0), size: 18),
+                                                  child: Icon(
+                                                    Icons.verified,
+                                                    color: Color(0xFF0083B0),
+                                                    size: 18,
+                                                  ),
                                                 ),
                                               if (isAdmin)
                                                 Container(
                                                   margin: const EdgeInsets.only(left: 4),
                                                   padding: const EdgeInsets.symmetric(
-                                                      horizontal: 6, vertical: 2),
+                                                      horizontal: 8, vertical: 4),
                                                   decoration: BoxDecoration(
-                                                    gradient: LinearGradient(
+                                                    gradient: const LinearGradient(
                                                       colors: [
-                                                        Colors.purple.shade300,
-                                                        Colors.purple.shade600,
+                                                        Color(0xFFD4AF37),
+                                                        Color(0xFFFFD700),
                                                       ],
                                                     ),
-                                                    borderRadius:
-                                                        BorderRadius.circular(12),
+                                                    borderRadius: BorderRadius.circular(12),
+                                                    boxShadow: [
+                                                      BoxShadow(
+                                                        color: const Color(0xFFD4AF37).withOpacity(0.3),
+                                                        blurRadius: 4,
+                                                        offset: const Offset(0, 2),
+                                                      ),
+                                                    ],
                                                   ),
-                                                  child: const Text(
-                                                    'مشرف',
-                                                    style: TextStyle(
-                                                      color: Colors.white,
-                                                      fontSize: 10,
-                                                      fontWeight: FontWeight.bold,
-                                                    ),
+                                                  child: Row(
+                                                    mainAxisSize: MainAxisSize.min,
+                                                    children: const [
+                                                      Icon(
+                                                        Icons.shield,
+                                                        color: Colors.white,
+                                                        size: 14,
+                                                      ),
+                                                      SizedBox(width: 4),
+                                                      Text(
+                                                        'مشرف',
+                                                        style: TextStyle(
+                                                          color: Colors.white,
+                                                          fontSize: 12,
+                                                          fontWeight: FontWeight.bold,
+                                                        ),
+                                                      ),
+                                                    ],
                                                   ),
                                                 ),
                                             ],
                                           ),
-                                          trailing: Icon(Icons.arrow_forward_ios, color: Colors.grey[400], size: 18),
+                                          trailing: Icon(
+                                            Icons.arrow_forward_ios,
+                                            color: isAdmin ? const Color(0xFFD4AF37) : Colors.grey[400],
+                                            size: 18,
+                                          ),
                                           onTap: () {
                                             Navigator.push(
                                               context,
                                               MaterialPageRoute(
                                                   builder: (context) =>
-                                                      ProfilePage(
-                                                          userId: userId)),
+                                                      ProfilePage(userId: userId)),
                                             );
                                           },
                                         ),
@@ -662,6 +795,7 @@ class _HomePageState extends State<HomePage> {
                               },
                             ),
                           ),
+                          const SizedBox(height: 17),
                         ],
                       ),
                     ),
@@ -674,7 +808,8 @@ class _HomePageState extends State<HomePage> {
   }
 
   // ويدجت مساعد لإنشاء أزرار الدردشة بأسلوب البطاقة
-  Widget _buildChatActionButton(BuildContext context, {
+  Widget _buildChatActionButton(
+    BuildContext context, {
     required String title,
     required IconData icon,
     required Color color,
@@ -706,17 +841,22 @@ class _HomePageState extends State<HomePage> {
 
           return Card(
             elevation: 4,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             child: InkWell(
               onTap: onTap,
               borderRadius: BorderRadius.circular(16),
               child: Stack(
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 10),
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 20, horizontal: 10),
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
-                        colors: [color.withOpacity(0.9), color.withOpacity(0.7)],
+                        colors: [
+                          color.withOpacity(0.9),
+                          color.withOpacity(0.7)
+                        ],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
@@ -772,7 +912,7 @@ class _HomePageState extends State<HomePage> {
             hasUnread = snapshot.data!.docs.any((chatDoc) {
               final chatData = chatDoc.data() as Map<String, dynamic>?;
               if (chatData == null) return false;
-              
+
               // We check the summary field we'll add in the PrivateChatPage file.
               return chatData['hasUnreadMessagesFor_$currentUserId'] == true;
             });
@@ -780,17 +920,22 @@ class _HomePageState extends State<HomePage> {
 
           return Card(
             elevation: 4,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             child: InkWell(
               onTap: onTap,
               borderRadius: BorderRadius.circular(16),
               child: Stack(
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 10),
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 20, horizontal: 10),
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
-                        colors: [color.withOpacity(0.9), color.withOpacity(0.7)],
+                        colors: [
+                          color.withOpacity(0.9),
+                          color.withOpacity(0.7)
+                        ],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
@@ -834,59 +979,72 @@ class _HomePageState extends State<HomePage> {
   // ويدجت مساعد لإنشاء بانر المشرف
   Widget _buildAdminPanelBanner(BuildContext context) {
     return Card(
-      elevation: 6,
+      elevation: 8,
       margin: const EdgeInsets.only(bottom: 20),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      clipBehavior: Clip.antiAlias, // يضمن أن التدرج يحترم الحواف الدائرية
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: Container(
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Colors.deepPurple.shade500, Colors.purple.shade400], // تدرج لوني مميز للمشرف
+          gradient: const LinearGradient(
+            colors: [
+              Color(0xFFFFD700),  // ذهبي فاتح
+              Color(0xFFB8860B),  // ذهبي داكن
+            ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFFFD700).withOpacity(0.3),
+              blurRadius: 15,
+              offset: const Offset(0, 5),
+            ),
+          ],
         ),
         child: Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.all(20.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: const [
-                  Icon(Icons.admin_panel_settings_rounded, color: Colors.white, size: 28),
-                  SizedBox(width: 12),
+                  Icon(Icons.workspace_premium, color: Colors.white, size: 32),
+                  SizedBox(width: 15),
                   Text(
                     'لوحة تحكم المشرف',
                     style: TextStyle(
-                      fontSize: 20,
+                      fontSize: 24,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
+                      shadows: [
+                        Shadow(
+                          color: Colors.black26,
+                          blurRadius: 2,
+                          offset: Offset(0, 2),
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  _buildAdminAction(
-                    context,
+                  _buildAdminAction(context,
                     icon: Icons.bar_chart_rounded,
                     label: 'الإحصائيات',
                     onTap: () {
-                      Navigator.push(
-                        context,
+                      Navigator.push(context,
                         MaterialPageRoute(builder: (context) => const AdminPanelPage()),
                       );
                     },
                   ),
-                  _buildAdminAction(
-                    context,
+                  _buildAdminAction(context,
                     icon: Icons.manage_accounts_rounded,
-                    label: 'إدارة حظر المستخدمين',
+                    label:'إدارة حظر المستخدمين',
                     onTap: () {
-                      Navigator.push(
-                        context,
+                      Navigator.push(context,
                         MaterialPageRoute(builder: (context) => const AdminManageUsersPage()),
                       );
                     },
@@ -901,7 +1059,10 @@ class _HomePageState extends State<HomePage> {
   }
 
   // ويدجت مساعد لإنشاء أزرار الإجراءات داخل بانر المشرف
-  Widget _buildAdminAction(BuildContext context, {required IconData icon, required String label, required VoidCallback onTap}) {
+  Widget _buildAdminAction(BuildContext context,
+      {required IconData icon,
+      required String label,
+      required VoidCallback onTap}) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
@@ -913,7 +1074,8 @@ class _HomePageState extends State<HomePage> {
             const SizedBox(height: 8),
             Text(
               label,
-              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+              style: const TextStyle(
+                  color: Colors.white, fontWeight: FontWeight.w600),
             ),
           ],
         ),

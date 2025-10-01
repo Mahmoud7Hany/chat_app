@@ -45,7 +45,23 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
 
   // دالة جديدة لتحديث رسائل الطرف الآخر كمقروءة
   void _markMessagesAsRead() async {
-    // Update the main chat document to mark messages as read for the current user.
+    final messagesRef = FirebaseFirestore.instance
+        .collection('private_chats')
+        .doc(widget.chatId)
+        .collection('messages');
+
+    // تحديث جميع الرسائل غير المقروءة المرسلة من الطرف الآخر
+    final unreadMessages = await messagesRef
+        .where('senderId', isEqualTo: widget.otherUserId)
+        .where('isRead', isEqualTo: false)
+        .get();
+
+    // تحديث كل رسالة غير مقروءة
+    for (var doc in unreadMessages.docs) {
+      await doc.reference.update({'isRead': true});
+    }
+
+    // تحديث حالة الدردشة الرئيسية
     await FirebaseFirestore.instance
         .collection('private_chats')
         .doc(widget.chatId)
@@ -82,7 +98,7 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
       'senderId': currentUserId,
       'message': message,
       'timestamp': FieldValue.serverTimestamp(),
-      'isRead': false,
+      'isRead': false, // تأكد من أن كل رسالة جديدة تبدأ كغير مقروءة
     });
 
     // تحديث الحقل lastMessage في المستند الرئيسي للدردشة وتعيين علامة "غير مقروء" للطرف الآخر
@@ -194,10 +210,13 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
                         ),
                       ),
                       if (isVerified)
-                        const Padding(
-                          padding: EdgeInsets.only(left: 6, right: 4),
-                          child: Icon(Icons.verified,
-                              color: Color.fromARGB(255, 56, 231, 3), size: 20),
+                        Container(
+                          margin: const EdgeInsets.only(left: 4),
+                          child: const Icon(
+                            Icons.verified,
+                            color: Colors.lightBlueAccent,
+                            size: 20,
+                          ),
                         ),
                       if (isAdmin)
                         Container(
@@ -205,39 +224,49 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 8, vertical: 2),
                           decoration: BoxDecoration(
-                            gradient: LinearGradient(
+                            gradient: const LinearGradient(
                               colors: [
-                                Colors.purple.shade300,
-                                Colors.purple.shade600,
+                                Color(0xFFFFD700),  // ذهبي فاتح
+                                Color(0xFFB8860B),  // ذهبي داكن
                               ],
                             ),
-                            borderRadius: BorderRadius.circular(12),
-                            boxShadow: [
+                            borderRadius: BorderRadius.circular(6),
+                            boxShadow: const [
                               BoxShadow(
-                                color: Colors.purple.withOpacity(0.3),
+                                color: Color(0xFFFFD700),
                                 blurRadius: 4,
-                                offset: const Offset(0, 2),
+                                offset: Offset(0, 2),
                               ),
                             ],
                           ),
-                          child: const Text(
-                            'مشرف',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                            ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: const [
+                              Icon(
+                                Icons.workspace_premium,
+                                color: Colors.white,
+                                size: 14,
+                              ),
+                              SizedBox(width: 4),
+                              Text(
+                                'مشرف',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  shadows: [
+                                    Shadow(
+                                      color: Colors.black26,
+                                      blurRadius: 2,
+                                      offset: Offset(0, 1),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                     ],
-                  ),
-                  // Display online/offline status
-                  Text(
-                    isOnline ? 'متصل الآن' : 'غير متصل',
-                    style: TextStyle(
-                      color: isOnline ? Colors.greenAccent : Colors.grey.shade300,
-                      fontSize: 12,
-                    ),
                   ),
                 ],
               );
@@ -356,31 +385,31 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
                                                         horizontal: 8,
                                                         vertical: 2),
                                                 decoration: BoxDecoration(
-                                                  gradient: LinearGradient(
+                                                  gradient: const LinearGradient(
                                                     colors: [
-                                                      Colors.purple.shade300,
-                                                      Colors.purple.shade600,
+                                                      Color(0xFFFFD700),
+                                                      Color(0xFFB8860B),
                                                     ],
                                                   ),
                                                   borderRadius:
-                                                      BorderRadius.circular(12),
-                                                  boxShadow: [
+                                                      BorderRadius.circular(6),
+                                                  boxShadow: const [
                                                     BoxShadow(
-                                                      color: Colors.purple
-                                                          .withOpacity(0.3),
-                                                      blurRadius: 4,
-                                                      offset:
-                                                          const Offset(0, 2),
+                                                      color: Color(0xFFFFD700),
+                                                      blurRadius: 3,
+                                                      offset: Offset(0, 1),
                                                     ),
                                                   ],
                                                 ),
-                                                child: const Row(
+                                                child: Row(
                                                   mainAxisSize:
                                                       MainAxisSize.min,
-                                                  children: [
-                                                    Icon(Icons.shield,
-                                                        color: Colors.white,
-                                                        size: 12),
+                                                  children: const [
+                                                    Icon(
+                                                      Icons.workspace_premium,
+                                                      color: Colors.white,
+                                                      size: 12,
+                                                    ),
                                                     SizedBox(width: 4),
                                                     Text(
                                                       'مشرف',
@@ -389,26 +418,25 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
                                                         fontSize: 10,
                                                         fontWeight:
                                                             FontWeight.bold,
+                                                        shadows: [
+                                                          Shadow(
+                                                            color: Colors.black26,
+                                                            blurRadius: 2,
+                                                            offset: Offset(0, 1),
+                                                          ),
+                                                        ],
                                                       ),
                                                     ),
                                                   ],
                                                 ),
                                               ),
                                             if (isVerified)
-                                              const Padding(
-                                                padding:
-                                                    EdgeInsets.only(left: 4),
-                                                child: Icon(
+                                              Container(
+                                                margin: const EdgeInsets.only(left: 4),
+                                                child: const Icon(
                                                   Icons.verified,
-                                                  color: Color(0xFF0083B0),
+                                                  color: Colors.blue,
                                                   size: 16,
-                                                  shadows: [
-                                                    Shadow(
-                                                      color: Color(0xFF0083B0),
-                                                      blurRadius: 4,
-                                                      offset: Offset(0, 2),
-                                                    ),
-                                                  ],
                                                 ),
                                               ),
                                             Text(
@@ -448,7 +476,20 @@ class _PrivateChatPageState extends State<PrivateChatPage> {
                                               fontSize: 12,
                                             ),
                                           ),
-                                          const SizedBox(width: 8),
+                                          const SizedBox(width: 4),
+                                          if (isMe) 
+                                            Row(
+                                              children: [
+                                                Icon(
+                                                  data['isRead'] == true ? Icons.done_all : Icons.done,
+                                                  size: 16,
+                                                  color: data['isRead'] == true
+                                                      ? Colors.blue
+                                                      : (isMe ? Colors.white70 : Colors.black54),
+                                                ),
+                                              ],
+                                            ),
+                                          const SizedBox(width: 4),
                                           if (_isAdmin)
                                             GestureDetector(
                                               onTap: () async {

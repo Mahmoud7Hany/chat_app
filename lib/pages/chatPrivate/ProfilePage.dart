@@ -104,7 +104,7 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget build(BuildContext context) {
     final primaryColor = Theme.of(context).primaryColor;
     final accentColor = Theme.of(context).colorScheme.secondary;
-    final gradientColors = [primaryColor, accentColor];
+    final defaultGradientColors = [primaryColor, accentColor];
     final currentUserId = FirebaseAuth.instance.currentUser!.uid;
 
     return Scaffold(
@@ -134,7 +134,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     tooltip: 'حفظ التغييرات',
                   )
                 : IconButton(
-                    icon: const Icon(Icons.edit, color: Colors.white),
+                    icon: const Icon(Icons.edit, color: Colors.black),
                     onPressed: () {
                       setState(() {
                         _isEditing = true;
@@ -150,18 +150,25 @@ class _ProfilePageState extends State<ProfilePage> {
           if (!snapshot.hasData || _isLoading) {
             return const Center(child: CircularProgressIndicator());
           }
+
           var userData = snapshot.data!.data() as Map<String, dynamic>;
           String username = userData['username'] ?? 'مستخدم مجهول';
           String? profilePic = userData['profilePic'];
           bool isAdmin = userData['isAdmin'] ?? false;
           bool isVerified = userData['isVerified'] ?? false;
           bool isOnline = userData['isOnline'] ?? false;
-          bool profileUserIsBanned = userData['isBanned'] ?? false;
-
-          // معلومات خاصة لا تظهر إلا للمستخدم نفسه
           String? userEmail = userData['email'];
           Timestamp? createdAt = userData['createdAt'];
+          bool profileUserIsBanned = userData['isBanned'] ?? false;
           
+          // تحديد ألوان وتأثيرات خاصة للمشرفين - ألوان أهدأ
+          final gradientColors = isAdmin 
+              ? const [
+                  Color(0xFFF0E4BB),  // ذهبي فاتح هادئ
+                  Color(0xFFE6CA7A),   // ذهبي متوسط هادئ
+                ]
+              : defaultGradientColors;
+
           return SingleChildScrollView(
             child: Column(
               children: [
@@ -169,7 +176,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   clipBehavior: Clip.none,
                   children: [
                     Container(
-                      height: 250,
+                      height: isAdmin ? 280 : 250,
                       width: double.infinity,
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
@@ -177,18 +184,40 @@ class _ProfilePageState extends State<ProfilePage> {
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ),
-                        borderRadius: const BorderRadius.only(
-                          bottomLeft: Radius.circular(40),
-                          bottomRight: Radius.circular(40),
+                        borderRadius: BorderRadius.only(
+                          bottomLeft: Radius.circular(isAdmin ? 60 : 40),
+                          bottomRight: Radius.circular(isAdmin ? 60 : 40),
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.2),
-                            blurRadius: 10,
+                            color: isAdmin 
+                                ? const Color(0xFFE6CA7A).withOpacity(0.3)
+                                : Colors.black.withOpacity(0.2),
+                            blurRadius: isAdmin ? 15 : 10,
                             offset: const Offset(0, 5),
                           ),
                         ],
                       ),
+                      child: isAdmin ? Stack(
+                        children: [
+                          // إضافة تأثيرات خلفية للمشرفين
+                          Positioned.fill(
+                            child: CustomPaint(
+                              painter: ShimmerPainter(),
+                            ),
+                          ),
+                          // إضافة أيقونة المشرف في الخلفية
+                          Positioned(
+                            top: 50,
+                            right: 30,
+                            child: Icon(
+                              Icons.shield,
+                              size: 80,
+                              color: Colors.white.withOpacity(0.2),
+                            ),
+                          ),
+                        ],
+                      ) : null,
                     ),
                     Positioned(
                       bottom: -60,
@@ -263,6 +292,123 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
                       ),
                     ),
+                    // شارة المشرف المحسنة
+                    if (isAdmin && isVerified)
+                      Positioned(
+                        top: 70,
+                        right: MediaQuery.of(context).size.width * 0.25,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFFE6CA7A), Color(0xFFF0E4BB)],
+                            ),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: const Color(0xFFD4AF37),
+                              width: 1.5,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFFD4AF37).withOpacity(0.2),
+                                blurRadius: 8,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: const [
+                              Icon(Icons.verified, color: Color(0xFF3B82F6), size: 20),
+                              SizedBox(width: 4),
+                              Icon(Icons.workspace_premium, color: Color(0xFFD4AF37), size: 20),
+                              SizedBox(width: 8),
+                              Text(
+                                'مشرف موثق',
+                                style: TextStyle(
+                                  color: Color(0xFF8B7355),
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    else if (isAdmin)
+                      Positioned(
+                        top: 70,
+                        right: MediaQuery.of(context).size.width * 0.25,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFFE6CA7A), Color(0xFFF0E4BB)],
+                            ),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: const Color(0xFFD4AF37),
+                              width: 1.5,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFFD4AF37).withOpacity(0.2),
+                                blurRadius: 8,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: const [
+                              Icon(Icons.workspace_premium, color: Color(0xFFD4AF37), size: 20),
+                              SizedBox(width: 8),
+                              Text(
+                                'مشرف',
+                                style: TextStyle(
+                                  color: Color(0xFF8B7355),
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    else if (isVerified)
+                      Positioned(
+                        top: 70,
+                        right: MediaQuery.of(context).size.width * 0.25,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.blue.withOpacity(0.2),
+                                blurRadius: 8,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: const [
+                              Icon(Icons.verified, color: Color(0xFF3B82F6), size: 20),
+                              SizedBox(width: 8),
+                              Text(
+                                'موثق',
+                                style: TextStyle(
+                                  color: Color(0xFF3B82F6),
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                   ],
                 ),
                 const SizedBox(height: 80),
@@ -311,37 +457,45 @@ class _ProfilePageState extends State<ProfilePage> {
                         children: [
                           if (isVerified)
                             Chip(
-                              avatar: const Icon(Icons.verified, color: Colors.blue),
+                              avatar: const Icon(Icons.verified, color: Color(0xFF3B82F6)),
                               label: const Text(
                                 'مُوثق',
-                                style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
+                                style: TextStyle(
+                                  color: Color(0xFF3B82F6),
+                                  fontWeight: FontWeight.bold
+                                ),
                               ),
-                              backgroundColor: Colors.blue.shade50,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                              side: BorderSide(color: Colors.blue.shade200),
+                              backgroundColor: const Color(0xFFEFF6FF),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                                side: const BorderSide(color: Color(0xFF3B82F6), width: 1),
+                              ),
                             ),
                           if (isAdmin)
                             Chip(
-                              avatar: const Icon(Icons.admin_panel_settings, color: Colors.orange),
+                              avatar: const Icon(
+                                Icons.workspace_premium,
+                                color: Color(0xFFD4AF37),
+                                size: 20,
+                              ),
                               label: const Text(
                                 'مشرف',
-                                style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
+                                style: TextStyle(
+                                  color: Color(0xFF8B7355),
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
-                              backgroundColor: Colors.orange.shade50,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                              side: BorderSide(color: Colors.orange.shade200),
+                              backgroundColor: const Color(0xFFF0E4BB),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                                side: const BorderSide(
+                                  color: Color(0xFFD4AF37),
+                                  width: 1.5,
+                                ),
+                              ),
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                             ),
-                          Chip(
-                            avatar: Icon(isOnline ? Icons.online_prediction : Icons.do_not_disturb_on_total_silence,
-                                color: isOnline ? Colors.green : Colors.red),
-                            label: Text(
-                              isOnline ? 'متصل الآن' : 'غير متصل',
-                              style: TextStyle(color: isOnline ? Colors.green : Colors.red, fontWeight: FontWeight.bold),
-                            ),
-                            backgroundColor: isOnline ? Colors.green.shade50 : Colors.red.shade50,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                            side: BorderSide(color: isOnline ? Colors.green.shade200 : Colors.red.shade200),
-                          ),
                         ],
                       ),
                       const SizedBox(height: 20),
@@ -486,4 +640,60 @@ class _ProfilePageState extends State<ProfilePage> {
       ],
     );
   }
+
+  // Widget مساعد لبناء إحصائيات المشرف
+  // ignore: unused_element
+  Widget _buildAdminStat({
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          icon,
+          color: const Color(0xFFD4AF37),
+          size: 24,
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFFD4AF37),
+          ),
+        ),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.grey[600],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// إضافة painter للتأثيرات المتحركة
+class ShimmerPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white.withOpacity(0.1)
+      ..strokeWidth = 2;
+
+    for (var i = 0; i < 5; i++) {
+      canvas.drawLine(
+        Offset(size.width * (i / 5), 0),
+        Offset(size.width * ((i + 1) / 5), size.height),
+        paint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(CustomPainter oldDelegate) => false;
 }

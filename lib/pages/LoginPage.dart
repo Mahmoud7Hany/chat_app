@@ -17,6 +17,13 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+
+  // متغيرات لحالة ورسالة الخطأ لكل حقل
+  String? _emailError;
+  String? _passwordError;
+  bool _emailHasError = false;
+  bool _passwordHasError = false;
+
   bool _isLoading = false; // متغير لتحديد ما إذا كانت العملية جارية
   bool _obscurePassword = true; // متغير للتحكم بإخفاء/إظهار كلمة المرور
 
@@ -34,16 +41,52 @@ class _LoginPageState extends State<LoginPage> {
 
   // دالة لتسجيل الدخول
   Future<void> _login() async {
-    // التحقق من أن الحقول غير فارغة
-    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("الرجاء ملء جميع الحقول")),
-      );
+    setState(() {
+      // إعادة تعيين الأخطاء
+      _emailError = null;
+      _passwordError = null;
+      _emailHasError = false;
+      _passwordHasError = false;
+    });
+
+    bool hasError = false;
+
+    // التحقق من البريد الإلكتروني
+    if (_emailController.text.isEmpty) {
+      setState(() {
+        _emailError = "الرجاء إدخال البريد الإلكتروني";
+        _emailHasError = true;
+      });
+      hasError = true;
+    } else if (!_emailController.text.contains('@')) {
+      setState(() {
+        _emailError = "صيغة البريد الإلكتروني غير صحيحة";
+        _emailHasError = true;
+      });
+      hasError = true;
+    }
+
+    // التحقق من كلمة المرور
+    if (_passwordController.text.isEmpty) {
+      setState(() {
+        _passwordError = "الرجاء إدخال كلمة المرور";
+        _passwordHasError = true;
+      });
+      hasError = true;
+    } else if (_passwordController.text.length < 6) {
+      setState(() {
+        _passwordError = "كلمة المرور يجب أن تكون 6 أحرف أو أكثر";
+        _passwordHasError = true;
+      });
+      hasError = true;
+    }
+
+    if (hasError) {
       return;
     }
 
     setState(() {
-      _isLoading = true; // تفعيل دائرة التحميل
+      _isLoading = true;
     });
 
     try {
@@ -51,38 +94,120 @@ class _LoginPageState extends State<LoginPage> {
         email: _emailController.text,
         password: _passwordController.text,
       );
-      await _setLoginStatus(); // تخزين حالة تسجيل الدخول
+      await _setLoginStatus();
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const HomePage()),
       );
     } catch (e) {
-      String errorMessage = 'فشل تسجيل الدخول';
       if (e is FirebaseAuthException) {
+        // لطباعة كود الخطأ أثناء التطوير
+        // ignore: avoid_print
+        print('FirebaseAuthException code: ${e.code}');
         switch (e.code) {
           case 'user-not-found':
-            errorMessage = 'لا يوجد حساب مرتبط بهذا البريد الإلكتروني.';
+            setState(() {
+              _emailError = 'لا يوجد حساب مرتبط بهذا البريد الإلكتروني.';
+              _emailHasError = true;
+            });
             break;
           case 'wrong-password':
-            errorMessage = 'كلمة المرور غير صحيحة.';
+            setState(() {
+              _passwordError = 'كلمة المرور غير صحيحة. الرجاء المحاولة مرة أخرى.';
+              _passwordHasError = true;
+            });
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Text(
+                  'كلمة المرور غير صحيحة. الرجاء التأكد والمحاولة مرة أخرى.',
+                  style: TextStyle(color: Colors.white),
+                ),
+                backgroundColor: Colors.deepOrange,
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+            break;
+          case 'invalid-credential':
+            setState(() {
+              _passwordError = 'كلمة المرور أو البريد الإلكتروني غير صحيح. الرجاء التأكد والمحاولة مرة أخرى.';
+              _passwordHasError = true;
+            });
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Text(
+                  'كلمة المرور أو البريد الإلكتروني غير صحيح. الرجاء التأكد والمحاولة مرة أخرى.',
+                  style: TextStyle(color: Colors.white),
+                ),
+                backgroundColor: Colors.deepOrange,
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
             break;
           case 'invalid-email':
-            errorMessage = 'البريد الإلكتروني غير صالح.';
+            setState(() {
+              _emailError = 'البريد الإلكتروني غير صالح. تأكد من كتابته بشكل صحيح.';
+              _emailHasError = true;
+            });
             break;
-          case 'user-disabled': // حالة الحساب المعطل
-            errorMessage = 'تم تقيد حسابك، تواصل مع الدعم.';
+          case 'user-disabled':
+            setState(() {
+              _emailError = 'تم تقييد حسابك، يرجى التواصل مع الدعم.';
+              _emailHasError = true;
+            });
             break;
           default:
-            errorMessage = 'حدث خطأ غير متوقع: ${e.message}';
+            // لطباعة كود الخطأ غير المتوقع أثناء التطوير
+            // ignore: avoid_print
+            print('Unexpected FirebaseAuthException: ${e.code}');
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'حدث خطأ غير متوقع: ${e.message}',
+                  style: const TextStyle(color: Colors.white),
+                ),
+                backgroundColor: Colors.red,
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
             break;
         }
+      } else {
+        // فحص نص الخطأ إذا كان متعلق بكلمة المرور
+        final errorMsg = e.toString();
+        if (errorMsg.contains('password') || errorMsg.contains('كلمة المرور')) {
+          setState(() {
+            _passwordError = 'كلمة المرور غير صحيحة. الرجاء التأكد والمحاولة مرة أخرى.';
+            _passwordHasError = true;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text(
+                'كلمة المرور غير صحيحة. الرجاء التأكد والمحاولة مرة أخرى.',
+                style: TextStyle(color: Colors.white),
+              ),
+              backgroundColor: Colors.deepOrange,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        } else {
+          // لطباعة الخطأ غير المتوقع أثناء التطوير
+          // ignore: avoid_print
+          print('Unexpected error: $e');
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text(
+                'حدث خطأ غير متوقع. حاول لاحقاً.',
+                style: TextStyle(color: Colors.white),
+              ),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(errorMessage)),
-      );
     } finally {
       setState(() {
-        _isLoading = false; // إخفاء دائرة التحميل بعد اكتمال العملية
+        _isLoading = false;
       });
     }
   }
@@ -149,18 +274,23 @@ class _LoginPageState extends State<LoginPage> {
                             enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                               borderSide: BorderSide(
-                                color: Theme.of(context)
-                                    .primaryColor
-                                    .withOpacity(0.3),
+                                color: _emailHasError
+                                    ? Colors.red
+                                    : Theme.of(context)
+                                        .primaryColor
+                                        .withOpacity(0.3),
                               ),
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                               borderSide: BorderSide(
-                                color: Theme.of(context).primaryColor,
+                                color: _emailHasError
+                                    ? Colors.red
+                                    : Theme.of(context).primaryColor,
                                 width: 2,
                               ),
                             ),
+                            errorText: _emailError,
                           ),
                           keyboardType: TextInputType.emailAddress,
                         ),
@@ -174,6 +304,25 @@ class _LoginPageState extends State<LoginPage> {
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(
+                                color: _passwordHasError
+                                    ? Colors.orange
+                                    : Theme.of(context)
+                                        .primaryColor
+                                        .withOpacity(0.3),
+                              ),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(
+                                color: _passwordHasError
+                                    ? Colors.orange
+                                    : Theme.of(context).primaryColor,
+                                width: 2,
+                              ),
+                            ),
                             suffixIcon: IconButton(
                               icon: Icon(
                                 _obscurePassword
@@ -186,6 +335,7 @@ class _LoginPageState extends State<LoginPage> {
                                 });
                               },
                             ),
+                            errorText: _passwordError,
                           ),
                         ),
                         const SizedBox(height: 24),
@@ -217,32 +367,32 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                         ),
                         const SizedBox(height: 24),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Text(
-                              'ليس لديك حساب؟',
-                              style: TextStyle(color: Colors.grey),
-                            ),
-                            TextButton(
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => const SignUpPage(),
-                                  ),
-                                );
-                              },
-                              child: Text(
-                                'سجل الآن',
-                                style: TextStyle(
-                                  color: Theme.of(context).primaryColor,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
+                        // Row(
+                        //   mainAxisAlignment: MainAxisAlignment.center,
+                        //   children: [
+                        //     const Text(
+                        //       'ليس لديك حساب؟',
+                        //       style: TextStyle(color: Colors.grey),
+                        //     ),
+                        //     TextButton(
+                        //       onPressed: () {
+                        //         Navigator.push(
+                        //           context,
+                        //           MaterialPageRoute(
+                        //             builder: (context) => const SignUpPage(),
+                        //           ),
+                        //         );
+                        //       },
+                        //       child: Text(
+                        //         'سجل الآن',
+                        //         style: TextStyle(
+                        //           color: Theme.of(context).primaryColor,
+                        //           fontWeight: FontWeight.bold,
+                        //         ),
+                        //       ),
+                        //     ),
+                        //   ],
+                        // ),
                         IconButton(
                           icon: const Icon(Icons.support_agent),
                           tooltip: 'الدعم',

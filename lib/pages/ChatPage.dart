@@ -1,5 +1,5 @@
 // lib/pages/ChatPage.dart
-// ignore_for_file: deprecated_member_use, library_private_types_in_public_api, file_names, use_build_context_synchronously
+// ignore_for_file: deprecated_member_use, library_private_types_in_public_api, file_names, use_build_context_synchronously, unused_field, prefer_final_fields
 
 import 'package:chat/pages/Support/SupportPage.dart';
 import 'package:chat/widgets/BanCountdownWidget.dart';
@@ -25,6 +25,12 @@ class _ChatPageState extends State<ChatPage> {
   String? _banReason;
   bool _isAdmin = false; // متغير لتحديد حالة المشرف
   bool _canViewMessages = true; // NEW: Added this variable definition
+  bool _didAutoScroll = false; // إضافة متغير لتتبع النزول التلقائي
+  int _lastMessagesCount = 0;  // متغير لحفظ عدد الرسائل السابق
+
+  // إضافة متغير للتحكم في نوع الرسالة
+  bool _sendAsAdmin = false;
+  String _adminName = ' المشرف'; // إضافة متغير لاسم المشرف
 
   @override
   void initState() {
@@ -63,6 +69,7 @@ class _ChatPageState extends State<ChatPage> {
     WriteBatch batch = FirebaseFirestore.instance.batch();
 
     for (var doc in messagesSnapshot.docs) {
+      // ignore: unnecessary_cast
       final messageData = doc.data() as Map<String, dynamic>;
       List<dynamic> readBy = messageData['readBy'] ?? [];
       // Check if the current user has not read the message yet
@@ -96,25 +103,37 @@ class _ChatPageState extends State<ChatPage> {
   // إرسال رسالة
   void _sendMessage() async {
     if (_messageController.text.isEmpty) return;
-    await FirebaseFirestore.instance.collection('messages').add({
-      'message': _messageController.text,
+    final message = _messageController.text;
+    
+    // إضافة معلومات الرسالة
+    Map<String, dynamic> messageData = {
       'senderId': currentUser.uid,
+      'message': message,
+      'timestamp': FieldValue.serverTimestamp(),
       'createdAt': FieldValue.serverTimestamp(),
-      'readBy': [currentUser.uid], // NEW: Mark message as read by sender
-    });
+      'sendAsAdmin': _sendAsAdmin,
+      'readBy': [currentUser.uid],
+      'displayName': _sendAsAdmin ? _adminName : null, // تخزين نوع العرض
+    };
+
+    await FirebaseFirestore.instance.collection('messages').add(messageData);
     _messageController.clear();
     _scrollToBottom();
   }
 
   // التمرير لأسفل
-  void _scrollToBottom() {
+  void _scrollToBottom({bool jump = false}) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
+        if (jump) {
+          _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+        } else {
+          _scrollController.animateTo(
+            _scrollController.position.maxScrollExtent,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOut,
+          );
+        }
       }
     });
   }
@@ -150,6 +169,77 @@ class _ChatPageState extends State<ChatPage> {
           style: TextStyle(
             color: Theme.of(context).primaryColor,
             fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMessageInput() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            offset: const Offset(0, -2),
+            blurRadius: 4,
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(12),
+      child: Card(
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Row(
+            children: [
+              if (_isAdmin) // إظهار زر الاختيار للمشرفين فقط
+                IconButton(
+                  icon: Icon(
+                    _sendAsAdmin ? Icons.workspace_premium : Icons.person,
+                    color: _sendAsAdmin ? const Color(0xFFFFD700) : Colors.grey,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _sendAsAdmin = !_sendAsAdmin;
+                    });
+                  },
+                  tooltip: _sendAsAdmin ? 'إرسال كمشرف' : 'إرسال باسمي',
+                ),
+              Expanded(
+                child: TextField(
+                  controller: _messageController,
+                  decoration: InputDecoration(
+                    hintText: _isAdmin
+                        ? (_sendAsAdmin ? 'اكتب رسالة كمشرف...' : 'اكتب رسالة باسمك...')
+                        : 'اكتب رسالتك هنا...',
+                    border: InputBorder.none,
+                  ),
+                ),
+              ),
+              Container(
+                margin: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topRight,
+                    end: Alignment.bottomLeft,
+                    colors: [
+                      Theme.of(context).primaryColor,
+                      Theme.of(context).primaryColorDark,
+                    ],
+                  ),
+                  shape: BoxShape.circle,
+                ),
+                child: IconButton(
+                  icon: const Icon(Icons.send, color: Colors.white),
+                  onPressed: _sendMessage,
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -240,9 +330,26 @@ class _ChatPageState extends State<ChatPage> {
                   );
                 }
                 List<DocumentSnapshot> messages = snapshot.data!.docs;
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  _scrollToBottom();
-                });
+                // النزول التلقائي لأسفل عند تحميل الرسائل أو تحديثها (مرة واحدة فقط عند الفتح)
+                if (!_didAutoScroll) {
+                  Future.delayed(const Duration(milliseconds: 100), () {
+                    _scrollToBottom(jump: true);
+                    Future.delayed(const Duration(milliseconds: 200), () {
+                      _scrollToBottom(jump: true);
+                    });
+                    _didAutoScroll = true;
+                  });
+                }
+                // النزول التلقائي عند وصول رسالة جديدة من أي مستخدم
+                if (_lastMessagesCount != messages.length) {
+                  Future.delayed(const Duration(milliseconds: 100), () {
+                    _scrollToBottom();
+                    Future.delayed(const Duration(milliseconds: 200), () {
+                      _scrollToBottom();
+                    });
+                  });
+                  _lastMessagesCount = messages.length;
+                }
                 return ListView.builder(
                   controller: _scrollController,
                   padding: const EdgeInsets.all(16),
@@ -262,11 +369,20 @@ class _ChatPageState extends State<ChatPage> {
                         bool isMessageUserAdmin = false;
                         bool isVerified = false;
                         if (userSnapshot.hasData && userSnapshot.data != null) {
-                          var userData = userSnapshot.data!.data()
-                              as Map<String, dynamic>?;
-                          username = (userData?['username'] ?? 'U').toString();
-                          isMessageUserAdmin = userData?['isAdmin'] ?? false;
-                          isVerified = userData?['isVerified'] ?? false;
+                            var userData = userSnapshot.data!.data() as Map<String, dynamic>?;
+                            
+                            // التحقق من نوع الرسالة وعرض الاسم المناسب
+                            if (message['sendAsAdmin'] == true) {
+                                // إذا كانت الرسالة مرسلة كمشرف، نعرض "مشرف"
+                                username = _adminName;
+                            } else {
+                                // إذا كانت رسالة عادية، نعرض اسم المستخدم
+                                username = (userData?['username'] ?? 'U').toString();
+                            }
+                            
+                            // تحديد حالة المشرف من بيانات المستخدم
+                            isMessageUserAdmin = userData?['isAdmin'] ?? false;
+                            isVerified = userData?['isVerified'] ?? false;
                         }
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 8),
@@ -282,9 +398,19 @@ class _ChatPageState extends State<ChatPage> {
                                       MediaQuery.of(context).size.width * 0.7,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: isMe
-                                      ? Theme.of(context).primaryColor
-                                      : Colors.white,
+                                  gradient: isMessageUserAdmin 
+                                    ? const LinearGradient(
+                                        colors: [
+                                          Color(0xFFFFF8E1),
+                                          Color(0xFFFFECB3),
+                                        ],
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                      )
+                                    : null,
+                                  color: isMessageUserAdmin 
+                                    ? null 
+                                    : (isMe ? Theme.of(context).primaryColor : Colors.white),
                                   borderRadius: BorderRadius.only(
                                     topLeft: const Radius.circular(16),
                                     topRight: const Radius.circular(16),
@@ -293,120 +419,109 @@ class _ChatPageState extends State<ChatPage> {
                                   ),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.black.withOpacity(0.1),
+                                      color: isMessageUserAdmin 
+                                        ? const Color(0xFFFFD700).withOpacity(0.2)
+                                        : Colors.black.withOpacity(0.1),
                                       blurRadius: 4,
                                       offset: const Offset(0, 2),
                                     ),
                                   ],
                                 ),
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 16, vertical: 10),
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    // عرض اسم المستخدم + توثيق/مشرف
-                                    if (userSnapshot.hasData &&
-                                        userSnapshot.data != null)
-                                      Padding(
-                                        padding:
-                                            const EdgeInsets.only(bottom: 4),
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            if (isMessageUserAdmin)
-                                              Container(
-                                                margin: const EdgeInsets.only(
-                                                    left: 4),
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                        horizontal: 8,
-                                                        vertical: 2),
-                                                decoration: BoxDecoration(
-                                                  gradient: LinearGradient(
-                                                    colors: [
-                                                      Colors.purple.shade300,
-                                                      Colors.purple.shade600,
+                                    // رأس الرسالة - الاسم والشارات
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          username,
+                                          style: TextStyle(
+                                            color: isMessageUserAdmin
+                                              ? Colors.black87  // لون اسم المشرف أسود
+                                              : (isMe ? Colors.white70 : Colors.black54),
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        if (isVerified)
+                                          Padding(
+                                            padding: const EdgeInsets.only(left: 4),
+                                            child: Icon(
+                                              Icons.verified,
+                                              color: const Color(0xFF0083B0),
+                                              size: 14,
+                                            ),
+                                          ),
+                                        if (isMessageUserAdmin)
+                                          Container(
+                                            margin: const EdgeInsets.only(left: 4),
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 8,
+                                              vertical: 2,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              gradient: const LinearGradient(
+                                                colors: [
+                                                  Color(0xFFFFD700),
+                                                  Color(0xFFB8860B),
+                                                ],
+                                              ),
+                                              borderRadius: BorderRadius.circular(6),
+                                              boxShadow: const [
+                                                BoxShadow(
+                                                  color: Color(0xFFFFD700),
+                                                  blurRadius: 3,
+                                                  offset: Offset(0, 1),
+                                                ),
+                                              ],
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: const [
+                                                Icon(
+                                                  Icons.workspace_premium,
+                                                  color: Colors.white,
+                                                  size: 12,
+                                                ),
+                                                SizedBox(width: 4),
+                                                Text(
+                                                  'مشرف',
+                                                  style: TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.bold,
+                                                    shadows: [
+                                                      Shadow(
+                                                        color: Colors.black26,
+                                                        blurRadius: 2,
+                                                        offset: Offset(0, 1),
+                                                      ),
                                                     ],
                                                   ),
-                                                  borderRadius:
-                                                      BorderRadius.circular(12),
-                                                  boxShadow: [
-                                                    BoxShadow(
-                                                      color: Colors.purple
-                                                          .withOpacity(0.3),
-                                                      blurRadius: 4,
-                                                      offset:
-                                                          const Offset(0, 2),
-                                                    ),
-                                                  ],
                                                 ),
-                                                child: const Row(
-                                                  mainAxisSize:
-                                                      MainAxisSize.min,
-                                                  children: [
-                                                    Icon(
-                                                      Icons.shield,
-                                                      color: Colors.white,
-                                                      size: 12,
-                                                    ),
-                                                    SizedBox(width: 4),
-                                                    Text(
-                                                      'مشرف',
-                                                      style: TextStyle(
-                                                        color: Colors.white,
-                                                        fontSize: 10,
-                                                        fontWeight:
-                                                            FontWeight.bold,
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                            if (isVerified)
-                                              Padding(
-                                                padding: const EdgeInsets.only(
-                                                    left: 4),
-                                                child: Icon(
-                                                  Icons.verified,
-                                                  color: Color(0xFF0083B0),
-                                                  size: 16,
-                                                  shadows: [
-                                                    Shadow(
-                                                      color: const Color(
-                                                              0xFF0083B0)
-                                                          .withOpacity(0.3),
-                                                      blurRadius: 4,
-                                                      offset:
-                                                          const Offset(0, 2),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                            Text(
-                                              username,
-                                              style: TextStyle(
-                                                color: isMe
-                                                    ? Colors.white70
-                                                    : Colors.black54,
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.bold,
-                                              ),
+                                              ],
                                             ),
-                                          ],
-                                        ),
-                                      ),
+                                          ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 4),
                                     // نص الرسالة
                                     Text(
                                       message['message'] ?? '',
                                       style: TextStyle(
-                                        color: isMe
-                                            ? Colors.white
-                                            : Colors.black87,
+                                        color: isMessageUserAdmin 
+                                          ? Colors.black87  // لون النص أسود للمشرف
+                                          : (isMe ? Colors.white : Colors.black87),
                                         fontSize: 16,
+                                        fontWeight: isMessageUserAdmin 
+                                          ? FontWeight.w600  // جعل النص أكثر وضوحاً للمشرف
+                                          : FontWeight.normal,
                                       ),
                                     ),
                                     const SizedBox(height: 4),
-                                    // وقت الإرسال + زر الحذف (الزر يظهر فقط للمشرف)
+                                    // الوقت وعلامات القراءة
                                     Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
@@ -414,9 +529,9 @@ class _ChatPageState extends State<ChatPage> {
                                           _formatTimestamp(
                                               message['createdAt']),
                                           style: TextStyle(
-                                            color: isMe
-                                                ? Colors.white70
-                                                : Colors.black54,
+                                            color: isMessageUserAdmin
+                                              ? Colors.black54  // لون الوقت رمادي داكن للمشرف
+                                              : (isMe ? Colors.white70 : Colors.black54),
                                             fontSize: 12,
                                           ),
                                         ),
@@ -535,64 +650,7 @@ class _ChatPageState extends State<ChatPage> {
             )
           // إذا لم يكن محظورًا نعرض حقل الإدخال
           else if (!_isBanned)
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    offset: const Offset(0, -2),
-                    blurRadius: 4,
-                  ),
-                ],
-              ),
-              padding: const EdgeInsets.all(12),
-              child: Card(
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(24),
-                  side: BorderSide(
-                      color: Theme.of(context).primaryColor.withOpacity(0.2)),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _messageController,
-                          decoration: const InputDecoration(
-                            hintText: 'اكتب رسالتك هنا...',
-                            contentPadding:
-                                EdgeInsets.symmetric(horizontal: 16),
-                            border: InputBorder.none,
-                          ),
-                          textDirection: TextDirection.rtl,
-                        ),
-                      ),
-                      Container(
-                        margin: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topRight,
-                            end: Alignment.bottomLeft,
-                            colors: [
-                              Theme.of(context).primaryColor,
-                              Theme.of(context).primaryColorDark,
-                            ],
-                          ),
-                          shape: BoxShape.circle,
-                        ),
-                        child: IconButton(
-                          icon: const Icon(Icons.send, color: Colors.white),
-                          onPressed: _sendMessage,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
+            _buildMessageInput(),
         ],
       ),
     );
